@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/build
+**/.svelte-kit
+**/.next
+**/logs
+.env
+.env.*
+!.env.example
+.git
+.DS_Store
+/uploads

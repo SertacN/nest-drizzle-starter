@@ -1,0 +1,33 @@
+{
+	"compilerOptions": {
+		// CommonJS, not ESM: `nest build`, the decorator metadata emit and ts-node/tsx all take
+		// the well-trodden path here, and nothing in this stack needs top-level await.
+		"module": "node16",
+		"moduleResolution": "node16",
+		"target": "ES2023",
+		"lib": ["ES2023"],
+		"rootDir": "./src",
+		"outDir": "./dist",
+		"declaration": false,
+		"removeComments": false,
+		"sourceMap": true,
+		// `incremental` is deliberately OFF. nest-cli deletes dist/ before compiling
+		// (deleteOutDir), but a leftover .tsbuildinfo makes tsc believe the output is already
+		// current — so the build reports success and emits NOTHING. A few saved seconds are not
+		// worth a build that silently produces an empty dist.
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		// Nest injects via decorator metadata, so a property is assigned after construction —
+		// the compiler cannot see it and would flag every injected field.
+		"strictPropertyInitialization": false,
+		"types": ["node", "multer"]
+	},
+	"include": ["src"],
+	"exclude": ["node_modules", "dist"]
+}

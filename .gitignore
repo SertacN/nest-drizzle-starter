@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.svelte-kit/
+.next/
+.env
+.env.*
+!.env.example
+*.log
+logs/
+.DS_Store
+
+# Uploaded files live in the repo root only (UPLOAD_DIR default). A path-independent
+# "uploads/" pattern would also swallow apps/api/src/modules/uploads/ and silently
+# leave its source files uncommitted.
+/uploads/

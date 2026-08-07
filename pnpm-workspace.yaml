@@ -1,0 +1,12 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 10+ blocks postinstall scripts by default; these are the ones we trust.
+allowBuilds:
+  "@nestjs/core": true
+  "@scarf/scarf": true
+  bcrypt: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
