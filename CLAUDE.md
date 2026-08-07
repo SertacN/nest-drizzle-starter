@@ -14,13 +14,13 @@ ready to run; `apps/web` is empty (the framework is chosen when a project starts
 
 ## Stack
 
-| Layer   | Choice                                                                                    |
-| ------- | ----------------------------------------------------------------------------------------- |
-| Backend | NestJS 11 + Express 5 + `ws`, REST under `/api/v1/*`, TypeScript, **CommonJS**             |
-| DB      | PostgreSQL 16 + Drizzle ORM (no Prisma anywhere)                                            |
+| Layer   | Choice                                                                                                     |
+| ------- | ---------------------------------------------------------------------------------------------------------- |
+| Backend | NestJS 11 + Express 5 + `ws`, REST under `/api/v1/*`, TypeScript, **CommonJS**                             |
+| DB      | PostgreSQL 16 + Drizzle ORM (no Prisma anywhere)                                                           |
 | Auth    | JWT in **httpOnly cookies** (access 15 min + refresh 30 days, tracked in the DB), roles: `admin` \| `user` |
-| Docs    | Swagger from class-validator DTOs, at `/api/docs`, development only                        |
-| Deploy  | Docker Compose; Traefik is NOT in the compose file, it is the shared VPS instance          |
+| Docs    | Swagger from class-validator DTOs, at `/api/docs`, development only                                        |
+| Deploy  | Docker Compose; Traefik is NOT in the compose file, it is the shared VPS instance                          |
 
 ## How the API is organised (module-first)
 

@@ -15,13 +15,13 @@ export { ApiError, type ApiClientOptions, type Requester } from "./http";
  *   const { items, meta } = await api.examples.list({ page: 1 });
  */
 export function createApiClient(options: ApiClientOptions) {
-	const requester = createRequester(options);
+    const requester = createRequester(options);
 
-	return {
-		auth: createAuthService(requester),
-		examples: createExampleService(requester),
-		uploads: createUploadsService(requester),
-	};
+    return {
+        auth: createAuthService(requester),
+        examples: createExampleService(requester),
+        uploads: createUploadsService(requester),
+    };
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;

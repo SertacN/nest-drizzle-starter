@@ -41,14 +41,14 @@ Etkileşimli API dokümantasyonu: <http://localhost:3000/api/docs> (sadece devel
 
 ## Komutlar
 
-| Komut                                                            | Nerede | Ne yapar                                                |
-| ---------------------------------------------------------------- | ------ | ------------------------------------------------------- |
-| `pnpm dev`                                                       | kök    | `dev` script'i olan her paketi paralel çalıştırır       |
-| `pnpm build` / `pnpm check` / `pnpm lint`                        | kök    | her paketi derler / tip kontrolü / lint                 |
-| `pnpm --filter api db:generate`                                  | api    | şemadan migration üretir                                 |
-| `pnpm --filter api db:migrate`                                   | api    | bekleyen migration'ları uygular                          |
-| `pnpm --filter api db:studio`                                    | api    | Drizzle Studio'yu açar                                   |
-| `pnpm --filter api user:create <email> <şifre> <ad> [rol]`       | api    | kullanıcı oluşturur                                      |
+| Komut                                                      | Nerede | Ne yapar                                          |
+| ---------------------------------------------------------- | ------ | ------------------------------------------------- |
+| `pnpm dev`                                                 | kök    | `dev` script'i olan her paketi paralel çalıştırır |
+| `pnpm build` / `pnpm check` / `pnpm lint`                  | kök    | her paketi derler / tip kontrolü / lint           |
+| `pnpm --filter api db:generate`                            | api    | şemadan migration üretir                          |
+| `pnpm --filter api db:migrate`                             | api    | bekleyen migration'ları uygular                   |
+| `pnpm --filter api db:studio`                              | api    | Drizzle Studio'yu açar                            |
+| `pnpm --filter api user:create <email> <şifre> <ad> [rol]` | api    | kullanıcı oluşturur                               |
 
 ## Yerleşim
 
@@ -96,7 +96,7 @@ Her başarılı yanıt aynı zarfla çıkar; zarfı `ResponseTransformIntercepto
 sadece `{ message, data?, meta? }` döndürür:
 
 ```json
-{ "success": true, "message": "Signed in", "data": { }, "timestamp": "2026-08-07T07:48:29.362Z" }
+{ "success": true, "message": "Signed in", "data": {}, "timestamp": "2026-08-07T07:48:29.362Z" }
 ```
 
 Hatalar bunun yerine `AllExceptionsFilter`'dan geçer. `error`, client'ın switch'lediği ve
@@ -226,7 +226,7 @@ Sonra `shared`'daki client'ı kullan:
 import { createApiClient } from "shared";
 
 const api = createApiClient({ baseUrl: "", onSessionExpired: () => navigate("/login") });
-await api.auth.login({ email, password });     // cookie'leri sunucu set ediyor
+await api.auth.login({ email, password }); // cookie'leri sunucu set ediyor
 const { items, meta } = await api.examples.list({ page: 1 });
 ```
 

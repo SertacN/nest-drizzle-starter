@@ -14,13 +14,13 @@ ucun paylaştığı sabitleri, tipleri ve API client'ını tutar.
 
 ## Stack
 
-| Katman  | Seçim                                                                                        |
-| ------- | -------------------------------------------------------------------------------------------- |
-| Backend | NestJS 11 + Express 5 + `ws`, `/api/v1/*` altında REST, TypeScript, **CommonJS**              |
-| DB      | PostgreSQL 16 + Drizzle ORM (hiçbir yerde Prisma yok)                                          |
+| Katman  | Seçim                                                                                                     |
+| ------- | --------------------------------------------------------------------------------------------------------- |
+| Backend | NestJS 11 + Express 5 + `ws`, `/api/v1/*` altında REST, TypeScript, **CommonJS**                          |
+| DB      | PostgreSQL 16 + Drizzle ORM (hiçbir yerde Prisma yok)                                                     |
 | Auth    | **httpOnly cookie**'de JWT (access 15 dk + refresh 30 gün, DB'de takip edilir), roller: `admin` \| `user` |
-| Doküman | class-validator DTO'larından üretilen Swagger, `/api/docs`, sadece development               |
-| Deploy  | Docker Compose; Traefik compose dosyasında DEĞİL, VPS'teki ortak instance                     |
+| Doküman | class-validator DTO'larından üretilen Swagger, `/api/docs`, sadece development                            |
+| Deploy  | Docker Compose; Traefik compose dosyasında DEĞİL, VPS'teki ortak instance                                 |
 
 ## API nasıl bölünmüş (modül önce)
 

@@ -96,7 +96,7 @@ Every successful response leaves in the same envelope, added by `ResponseTransfo
 — controllers only return `{ message, data?, meta? }`:
 
 ```json
-{ "success": true, "message": "Signed in", "data": { }, "timestamp": "2026-08-07T07:48:29.362Z" }
+{ "success": true, "message": "Signed in", "data": {}, "timestamp": "2026-08-07T07:48:29.362Z" }
 ```
 
 Errors go through `AllExceptionsFilter` instead. `error` is a stable CODE clients switch on and
@@ -226,7 +226,7 @@ Then use the client from `shared`:
 import { createApiClient } from "shared";
 
 const api = createApiClient({ baseUrl: "", onSessionExpired: () => navigate("/login") });
-await api.auth.login({ email, password });     // cookies are set by the server
+await api.auth.login({ email, password }); // cookies are set by the server
 const { items, meta } = await api.examples.list({ page: 1 });
 ```
 
