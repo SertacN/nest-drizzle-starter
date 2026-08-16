@@ -107,6 +107,23 @@ gider.
 - Tek API instance varsayılır (WS state bellekte) — yatay ölçekleme önce Redis pub/sub demektir.
 - `NODE_ENV=production` iken Swagger kapalı kalır.
 
+## Commit'ler
+
+Conventional Commits — `<tip>(<kapsam>): <konu>`. Küçük harf, emir kipi, İngilizce, sonda nokta
+yok, ~72 karakteri geçmesin. Tipler: `feat` `fix` `docs` `refactor` `chore` `build` `test`
+`style` `perf`. Kapsam: `api`, `web`, `shared`, `db` ya da daha darsa modül adı.
+
+```
+feat(notes): add the notes module with CRUD endpoints
+fix(auth): clear the refresh cookie on the path it was set on
+chore(deps): bump drizzle-orm to 0.45.2
+```
+
+Bunları önermek beklenen bir şey (bkz. çalışma anlaşması). Diff'in gerçekte ne yaptığını anlat —
+dosya adlarını tekrar etmek yerine önce diff'i oku. Yeni bir uygulama birkaç commit halinde
+iniyor (shared sözleşmesi, tablo + migration, modül, frontend route'u); staged değişiklik
+bunlardan birden fazlasını kapsıyorsa bölmeyi öner.
+
 ## Geliştirme
 
 Claude Code kendi başına dev sunucusu başlatmaz — `pnpm dev`'i kullanıcı kendi terminalinde

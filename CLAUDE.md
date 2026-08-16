@@ -108,6 +108,23 @@ the log only.
   first.
 - Swagger stays off when `NODE_ENV=production`.
 
+## Commits
+
+Conventional Commits — `<type>(<scope>): <subject>`. Lowercase, imperative, no trailing period,
+under ~72 characters. Types: `feat` `fix` `docs` `refactor` `chore` `build` `test` `style`
+`perf`. Scope is `api`, `web`, `shared`, `db`, or the module name when that is narrower.
+
+```
+feat(notes): add the notes module with CRUD endpoints
+fix(auth): clear the refresh cookie on the path it was set on
+chore(deps): bump drizzle-orm to 0.45.2
+```
+
+Suggesting these is welcome (see the working agreement). Describe what the diff actually does —
+read it first rather than restating the file names. A new app arrives as several commits (shared
+contract, table + migration, module, frontend route), so propose the split when the staged
+change covers more than one of those.
+
 ## Development
 
 Claude Code does not start dev servers on its own — the user runs `pnpm dev` in their own
