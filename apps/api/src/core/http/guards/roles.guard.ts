@@ -16,10 +16,7 @@ export class RolesGuard implements CanActivate {
 	constructor(private readonly reflector: Reflector) {}
 
 	canActivate(context: ExecutionContext): boolean {
-		const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
-			context.getHandler(),
-			context.getClass(),
-		]);
+		const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [context.getHandler(), context.getClass()]);
 		// No @Roles on the route: this guard has nothing to say. JwtGuard still applies.
 		if (!requiredRoles || requiredRoles.length === 0) return true;
 

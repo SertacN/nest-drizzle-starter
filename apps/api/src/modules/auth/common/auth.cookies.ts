@@ -20,11 +20,7 @@ function baseOptions(config: ConfigService): CookieOptions {
 	};
 }
 
-export function setAuthCookies(
-	res: Response,
-	tokens: { accessToken: string; refreshToken: string },
-	config: ConfigService,
-): void {
+export function setAuthCookies(res: Response, tokens: { accessToken: string; refreshToken: string }, config: ConfigService): void {
 	const options = baseOptions(config);
 
 	res.cookie(ACCESS_TOKEN_COOKIE, tokens.accessToken, {

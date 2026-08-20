@@ -1,4 +1,4 @@
-import type { UserRole } from "../constants/auth";
+import type { UserRole } from '../constants/auth';
 
 /**
  * The only user shape that ever leaves the API. Password hashes and token columns are not in

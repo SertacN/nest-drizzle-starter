@@ -1,15 +1,4 @@
-import {
-	Body,
-	Controller,
-	Get,
-	HttpCode,
-	HttpStatus,
-	Patch,
-	Post,
-	Res,
-	UnauthorizedException,
-	UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -42,10 +31,7 @@ export class AuthController {
 	@ApiOperation({ summary: 'Create an account and start a session' })
 	@ApiResponse({ status: 201, type: SessionResponseDto })
 	@ApiResponse({ status: 409, description: 'email_taken' })
-	async register(
-		@Body() dto: RegisterDto,
-		@Res({ passthrough: true }) res: Response,
-	): Promise<ServiceResponse<{ user: AuthUser }>> {
+	async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response): Promise<ServiceResponse<{ user: AuthUser }>> {
 		return this.startSession(res, await this.authService.register(dto), 'Account created');
 	}
 
@@ -55,10 +41,7 @@ export class AuthController {
 	@ApiOperation({ summary: 'Start a session' })
 	@ApiResponse({ status: 200, type: SessionResponseDto })
 	@ApiResponse({ status: 401, description: 'invalid_credentials' })
-	async login(
-		@Body() dto: LoginDto,
-		@Res({ passthrough: true }) res: Response,
-	): Promise<ServiceResponse<{ user: AuthUser }>> {
+	async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response): Promise<ServiceResponse<{ user: AuthUser }>> {
 		return this.startSession(res, await this.authService.login(dto), 'Signed in');
 	}
 
@@ -73,26 +56,16 @@ export class AuthController {
 	@ApiOperation({ summary: 'Rotate the token pair using the refresh cookie' })
 	@ApiResponse({ status: 200, type: SessionResponseDto })
 	@ApiResponse({ status: 401, description: 'invalid_refresh_token' })
-	async refresh(
-		@Cookies(REFRESH_TOKEN_COOKIE) refreshToken: string | undefined,
-		@Res({ passthrough: true }) res: Response,
-	): Promise<ServiceResponse<{ user: AuthUser }>> {
+	async refresh(@Cookies(REFRESH_TOKEN_COOKIE) refreshToken: string | undefined, @Res({ passthrough: true }) res: Response): Promise<ServiceResponse<{ user: AuthUser }>> {
 		if (!refreshToken) throw new UnauthorizedException('invalid_refresh_token');
-		return this.startSession(
-			res,
-			await this.authService.refreshSession(refreshToken),
-			'Session refreshed',
-		);
+		return this.startSession(res, await this.authService.refreshSession(refreshToken), 'Session refreshed');
 	}
 
 	/** Unauthenticated on purpose: signing out must work even with a dead access token. */
 	@Post('logout')
 	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Revoke the whole token family and clear both cookies' })
-	async logout(
-		@Cookies(REFRESH_TOKEN_COOKIE) refreshToken: string | undefined,
-		@Res({ passthrough: true }) res: Response,
-	): Promise<ServiceResponse<null>> {
+	async logout(@Cookies(REFRESH_TOKEN_COOKIE) refreshToken: string | undefined, @Res({ passthrough: true }) res: Response): Promise<ServiceResponse<null>> {
 		await this.authService.logout(refreshToken);
 		clearAuthCookies(res, this.config);
 		return { message: 'Signed out', data: null };
@@ -119,11 +92,7 @@ export class AuthController {
 	@ApiOperation({ summary: 'Update own name and/or password' })
 	@ApiResponse({ status: 200, type: SessionResponseDto })
 	@ApiResponse({ status: 400, description: 'invalid_current_password' })
-	async updateMe(
-		@GetUser('id') userId: string,
-		@Body() dto: UpdateProfileDto,
-		@Res({ passthrough: true }) res: Response,
-	): Promise<ServiceResponse<{ user: AuthUser }>> {
+	async updateMe(@GetUser('id') userId: string, @Body() dto: UpdateProfileDto, @Res({ passthrough: true }) res: Response): Promise<ServiceResponse<{ user: AuthUser }>> {
 		const { user, session } = await this.authService.updateOwnProfile(userId, dto);
 		if (session) setAuthCookies(res, session, this.config);
 		return { message: 'Profile updated', data: { user } };

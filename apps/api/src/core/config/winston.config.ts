@@ -34,19 +34,12 @@ function dailyRotate(fileName: string, level: string): winston.transport {
 export function createWinstonConfig(nodeEnv: string): WinstonModuleOptions {
 	const isDev = nodeEnv !== 'production';
 
-	const transports: winston.transport[] = [
-		dailyRotate('app-%DATE%.log', 'info'),
-		dailyRotate('error-%DATE%.log', 'error'),
-	];
+	const transports: winston.transport[] = [dailyRotate('app-%DATE%.log', 'info'), dailyRotate('error-%DATE%.log', 'error')];
 
 	if (isDev) {
 		transports.push(
 			new winston.transports.Console({
-				format: combine(
-					timestamp(),
-					winston.format.ms(),
-					nestWinstonUtilities.format.nestLike('API', { prettyPrint: true, colors: true }),
-				),
+				format: combine(timestamp(), winston.format.ms(), nestWinstonUtilities.format.nestLike('API', { prettyPrint: true, colors: true })),
 			}),
 		);
 	} else {

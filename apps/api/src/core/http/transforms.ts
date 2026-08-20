@@ -10,9 +10,7 @@ import type { TransformFnParams } from 'class-transformer';
  *
  * Non-strings pass through untouched — rejecting them is class-validator's job, not this one's.
  */
-export const trim = ({ value }: TransformFnParams): unknown =>
-	typeof value === 'string' ? value.trim() : value;
+export const trim = ({ value }: TransformFnParams): unknown => (typeof value === 'string' ? value.trim() : value);
 
 /** For emails: the uniqueness check and the stored value must agree on case. */
-export const trimLowercase = ({ value }: TransformFnParams): unknown =>
-	typeof value === 'string' ? value.trim().toLowerCase() : value;
+export const trimLowercase = ({ value }: TransformFnParams): unknown => (typeof value === 'string' ? value.trim().toLowerCase() : value);

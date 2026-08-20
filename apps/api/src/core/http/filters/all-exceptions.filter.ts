@@ -1,12 +1,4 @@
-import {
-	ArgumentsHost,
-	Catch,
-	ExceptionFilter,
-	HttpException,
-	HttpStatus,
-	Inject,
-	type LoggerService,
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Inject, type LoggerService } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import type { Request, Response } from 'express';
 import type { ApiErrorBody } from 'shared';
@@ -27,8 +19,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 		const request = ctx.getRequest<Request>();
 		const response = ctx.getResponse<Response>();
 
-		const status =
-			exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+		const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 		const { error, details } = describe(exception, status);
 
 		// The query string is dropped on purpose: tokens and reset codes end up there.

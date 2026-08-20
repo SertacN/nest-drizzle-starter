@@ -5,9 +5,6 @@ import type { Request } from 'express';
 export const Cookies = createParamDecorator((data: string | undefined, ctx: ExecutionContext) => {
 	// Express types `cookies` as `any`; narrowing it here keeps that `any` from leaking into
 	// every handler that reads a cookie.
-	const cookies = (ctx.switchToHttp().getRequest<Request>().cookies ?? {}) as Record<
-		string,
-		string | undefined
-	>;
+	const cookies = (ctx.switchToHttp().getRequest<Request>().cookies ?? {}) as Record<string, string | undefined>;
 	return data ? cookies[data] : cookies;
 });

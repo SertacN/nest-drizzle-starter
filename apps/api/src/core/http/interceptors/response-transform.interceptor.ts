@@ -11,14 +11,8 @@ import type { ServiceResponse } from '../types';
  * Errors do not pass through here; AllExceptionsFilter owns that side.
  */
 @Injectable()
-export class ResponseTransformInterceptor<TData> implements NestInterceptor<
-	ServiceResponse<TData>,
-	ApiResponse<TData>
-> {
-	intercept(
-		_context: ExecutionContext,
-		next: CallHandler<ServiceResponse<TData>>,
-	): Observable<ApiResponse<TData>> {
+export class ResponseTransformInterceptor<TData> implements NestInterceptor<ServiceResponse<TData>, ApiResponse<TData>> {
+	intercept(_context: ExecutionContext, next: CallHandler<ServiceResponse<TData>>): Observable<ApiResponse<TData>> {
 		return next.handle().pipe(
 			map((response) => ({
 				success: true as const,

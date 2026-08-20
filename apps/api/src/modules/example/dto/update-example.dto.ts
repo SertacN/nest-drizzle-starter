@@ -10,9 +10,7 @@ import { CreateExampleDto } from './create-example.dto';
  * touches the title would parse as `status: 'draft'` and silently unpublish the row. A
  * partial-update DTO must never inherit a default.
  */
-export class UpdateExampleDto extends PartialType(
-	OmitType(CreateExampleDto, ['status', 'imageUrl'] as const),
-) {
+export class UpdateExampleDto extends PartialType(OmitType(CreateExampleDto, ['status', 'imageUrl'] as const)) {
 	@ApiPropertyOptional({ enum: EXAMPLE_STATUSES })
 	@IsOptional()
 	@IsEnum(EXAMPLE_STATUSES)

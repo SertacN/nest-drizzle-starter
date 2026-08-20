@@ -9,10 +9,8 @@ import type { AuthContext } from '../types';
  *   getMe(@GetUser('id') userId: string)
  *   getMe(@GetUser() user: AuthContext)
  */
-export const GetUser = createParamDecorator(
-	<K extends keyof AuthContext>(data: K | undefined, ctx: ExecutionContext) => {
-		const user = ctx.switchToHttp().getRequest<Request & { user?: AuthContext }>().user;
-		if (!user) return null;
-		return data ? user[data] : user;
-	},
-);
+export const GetUser = createParamDecorator(<K extends keyof AuthContext>(data: K | undefined, ctx: ExecutionContext) => {
+	const user = ctx.switchToHttp().getRequest<Request & { user?: AuthContext }>().user;
+	if (!user) return null;
+	return data ? user[data] : user;
+});

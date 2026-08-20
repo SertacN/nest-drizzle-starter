@@ -7,28 +7,28 @@ import { USER_ROLES, type AuthUser, type UserRole } from 'shared';
  */
 export class UserResponseDto implements Omit<AuthUser, 'createdAt' | 'updatedAt'> {
 	@ApiProperty({ format: 'uuid' })
-	id: string;
+	id!: string;
 
 	@ApiProperty({ example: 'admin@example.com' })
-	email: string;
+	email!: string;
 
 	@ApiProperty({ example: 'Admin' })
-	name: string;
+	name!: string;
 
 	@ApiProperty({ enum: USER_ROLES, example: 'user' })
-	role: UserRole;
+	role!: UserRole;
 
 	@ApiProperty({ example: true })
-	isActive: boolean;
+	isActive!: boolean;
 
 	@ApiProperty({ type: String, format: 'date-time' })
-	createdAt: Date;
+	createdAt!: Date;
 
 	@ApiProperty({ type: String, format: 'date-time' })
-	updatedAt: Date;
+	updatedAt!: Date;
 }
 
 export class SessionResponseDto {
 	@ApiProperty({ type: UserResponseDto })
-	user: UserResponseDto;
+	user!: UserResponseDto;
 }

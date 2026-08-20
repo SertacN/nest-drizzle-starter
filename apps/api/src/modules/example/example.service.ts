@@ -17,25 +17,12 @@ export class ExampleService {
 		private readonly storage: StorageService,
 	) {}
 
-	async list(
-		userId: string,
-		query: ListExamplesDto,
-	): Promise<{ items: ExampleRow[]; meta: PaginationMeta }> {
+	async list(userId: string, query: ListExamplesDto): Promise<{ items: ExampleRow[]; meta: PaginationMeta }> {
 		// Ownership is part of every filter — a row is never reachable by id alone.
-		const where = and(
-			eq(examples.userId, userId),
-			eq(examples.isActive, true),
-			...(query.status ? [eq(examples.status, query.status)] : []),
-		);
+		const where = and(eq(examples.userId, userId), eq(examples.isActive, true), ...(query.status ? [eq(examples.status, query.status)] : []));
 
 		const [items, [totals]] = await Promise.all([
-			this.db
-				.select()
-				.from(examples)
-				.where(where)
-				.orderBy(desc(examples.createdAt))
-				.limit(query.perPage)
-				.offset(query.offset),
+			this.db.select().from(examples).where(where).orderBy(desc(examples.createdAt)).limit(query.perPage).offset(query.offset),
 			this.db.select({ value: count() }).from(examples).where(where),
 		]);
 
@@ -106,10 +93,7 @@ export class ExampleService {
 	 */
 	async deactivate(userId: string, id: string): Promise<void> {
 		const row = await this.get(userId, id);
-		await this.db
-			.update(examples)
-			.set({ isActive: false, updatedAt: new Date() })
-			.where(eq(examples.id, id));
+		await this.db.update(examples).set({ isActive: false, updatedAt: new Date() }).where(eq(examples.id, id));
 		await this.storage.deleteFile(userId, row.imageUrl);
 	}
 

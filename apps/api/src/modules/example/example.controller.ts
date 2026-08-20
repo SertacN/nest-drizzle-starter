@@ -1,16 +1,4 @@
-import {
-	Body,
-	Controller,
-	Delete,
-	Get,
-	HttpCode,
-	HttpStatus,
-	Param,
-	Patch,
-	Post,
-	Query,
-	UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { GetUser } from '../../core/http/decorators';
 import { ParseUuid } from '../../core/http/pipes';
@@ -33,10 +21,7 @@ export class ExampleController {
 	@Get()
 	@ApiOperation({ summary: 'List own examples (paginated)' })
 	@ApiResponse({ status: 200, type: [ExampleResponseDto] })
-	async list(
-		@GetUser('id') userId: string,
-		@Query() query: ListExamplesDto,
-	): Promise<ServiceResponse<ExampleResponseDto[]>> {
+	async list(@GetUser('id') userId: string, @Query() query: ListExamplesDto): Promise<ServiceResponse<ExampleResponseDto[]>> {
 		const { items, meta } = await this.exampleService.list(userId, query);
 		return { message: 'Examples loaded', data: items, meta };
 	}
@@ -56,31 +41,21 @@ export class ExampleController {
 	@Post()
 	@ApiOperation({ summary: 'Create an example' })
 	@ApiResponse({ status: 201, type: ExampleResponseDto })
-	async create(
-		@GetUser('id') userId: string,
-		@Body() dto: CreateExampleDto,
-	): Promise<ServiceResponse<ExampleResponseDto>> {
+	async create(@GetUser('id') userId: string, @Body() dto: CreateExampleDto): Promise<ServiceResponse<ExampleResponseDto>> {
 		return { message: 'Example created', data: await this.exampleService.create(userId, dto) };
 	}
 
 	@Patch(':id')
 	@ApiOperation({ summary: 'Update an example' })
 	@ApiResponse({ status: 200, type: ExampleResponseDto })
-	async update(
-		@GetUser('id') userId: string,
-		@Param('id', ParseUuid) id: string,
-		@Body() dto: UpdateExampleDto,
-	): Promise<ServiceResponse<ExampleResponseDto>> {
+	async update(@GetUser('id') userId: string, @Param('id', ParseUuid) id: string, @Body() dto: UpdateExampleDto): Promise<ServiceResponse<ExampleResponseDto>> {
 		return { message: 'Example updated', data: await this.exampleService.update(userId, id, dto) };
 	}
 
 	@Delete(':id')
 	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Deactivate an example (soft delete)' })
-	async remove(
-		@GetUser('id') userId: string,
-		@Param('id', ParseUuid) id: string,
-	): Promise<ServiceResponse<null>> {
+	async remove(@GetUser('id') userId: string, @Param('id', ParseUuid) id: string): Promise<ServiceResponse<null>> {
 		await this.exampleService.deactivate(userId, id);
 		return { message: 'Example deleted', data: null };
 	}

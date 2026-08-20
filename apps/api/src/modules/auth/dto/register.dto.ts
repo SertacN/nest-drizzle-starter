@@ -11,18 +11,18 @@ export class RegisterDto {
 	// Lower-cased here rather than in the service, so the uniqueness check and the stored value
 	// can never disagree about what "the same address" means.
 	@Transform(trimLowercase)
-	email: string;
+	email!: string;
 
 	@ApiProperty({ example: 'secret123', minLength: PASSWORD_MIN_LENGTH, maxLength: PASSWORD_MAX_LENGTH })
 	@IsString()
 	@MinLength(PASSWORD_MIN_LENGTH)
 	@MaxLength(PASSWORD_MAX_LENGTH)
-	password: string;
+	password!: string;
 
 	@ApiProperty({ example: 'Admin', minLength: 2, maxLength: 120 })
 	@IsString()
 	@MinLength(2)
 	@MaxLength(120)
 	@Transform(trim)
-	name: string;
+	name!: string;
 }

@@ -1,14 +1,4 @@
-import {
-	BadRequestException,
-	Controller,
-	HttpCode,
-	HttpStatus,
-	ParseFilePipeBuilder,
-	Post,
-	UploadedFile,
-	UseGuards,
-	UseInterceptors,
-} from '@nestjs/common';
+import { BadRequestException, Controller, HttpCode, HttpStatus, ParseFilePipeBuilder, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';

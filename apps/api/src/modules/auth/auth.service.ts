@@ -1,11 +1,4 @@
-import {
-	BadRequestException,
-	ConflictException,
-	ForbiddenException,
-	Inject,
-	Injectable,
-	UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { and, eq, isNull, lt } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthUser } from 'shared';
@@ -66,9 +59,7 @@ export class AuthService {
 		if (!user.isActive) throw new ForbiddenException('account_disabled');
 
 		// Opportunistic cleanup: drop this user's expired token rows while we are here.
-		await this.db
-			.delete(refreshTokens)
-			.where(and(eq(refreshTokens.userId, user.id), lt(refreshTokens.expiresAt, new Date())));
+		await this.db.delete(refreshTokens).where(and(eq(refreshTokens.userId, user.id), lt(refreshTokens.expiresAt, new Date())));
 
 		return this.issueSession(user, randomUUID());
 	}
@@ -97,13 +88,7 @@ export class AuthService {
 		const [claimed] = await this.db
 			.update(refreshTokens)
 			.set({ usedAt: now })
-			.where(
-				and(
-					eq(refreshTokens.id, payload.jti),
-					isNull(refreshTokens.usedAt),
-					isNull(refreshTokens.revokedAt),
-				),
-			)
+			.where(and(eq(refreshTokens.id, payload.jti), isNull(refreshTokens.usedAt), isNull(refreshTokens.revokedAt)))
 			.returning();
 
 		const [user] = await this.db.select().from(users).where(eq(users.id, payload.sub)).limit(1);
@@ -111,11 +96,7 @@ export class AuthService {
 
 		if (!claimed) {
 			// The row is either missing (forged or pruned) or already used/revoked.
-			const [existing] = await this.db
-				.select()
-				.from(refreshTokens)
-				.where(eq(refreshTokens.id, payload.jti))
-				.limit(1);
+			const [existing] = await this.db.select().from(refreshTokens).where(eq(refreshTokens.id, payload.jti)).limit(1);
 			if (!existing) throw new UnauthorizedException('invalid_refresh_token');
 
 			// Grace window: a token handed out seconds ago is usually a race (a retried request,
@@ -143,11 +124,7 @@ export class AuthService {
 		} catch {
 			return;
 		}
-		const [row] = await this.db
-			.select()
-			.from(refreshTokens)
-			.where(eq(refreshTokens.id, payload.jti))
-			.limit(1);
+		const [row] = await this.db.select().from(refreshTokens).where(eq(refreshTokens.id, payload.jti)).limit(1);
 		if (row) await this.revokeFamily(row.familyId);
 	}
 
@@ -158,10 +135,7 @@ export class AuthService {
 	 * the tab making the request, whose access token could not be refreshed 15 minutes later.
 	 * So the caller gets a FRESH pair back: other devices are signed out, this session stays.
 	 */
-	async updateOwnProfile(
-		userId: string,
-		dto: UpdateProfileDto,
-	): Promise<{ user: AuthUser; session: IssuedSession | null }> {
+	async updateOwnProfile(userId: string, dto: UpdateProfileDto): Promise<{ user: AuthUser; session: IssuedSession | null }> {
 		const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
 		if (!user) throw new UnauthorizedException('unauthorized');
 

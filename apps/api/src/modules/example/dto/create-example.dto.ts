@@ -10,7 +10,7 @@ export class CreateExampleDto {
 	@MinLength(1)
 	@MaxLength(200)
 	@Transform(trim)
-	title: string;
+	title!: string;
 
 	@ApiPropertyOptional({ maxLength: 5000 })
 	@IsOptional()

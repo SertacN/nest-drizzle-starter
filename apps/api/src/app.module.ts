@@ -45,8 +45,7 @@ import { UploadModule } from './modules/uploads';
 
 		WinstonModule.forRootAsync({
 			inject: [ConfigService],
-			useFactory: (config: ConfigService) =>
-				createWinstonConfig(config.get<string>('NODE_ENV', 'development')),
+			useFactory: (config: ConfigService) => createWinstonConfig(config.get<string>('NODE_ENV', 'development')),
 		}),
 
 		// Applies to every route; individual handlers tighten it with @Throttle.
