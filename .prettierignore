@@ -4,5 +4,8 @@ build
 coverage
 pnpm-lock.yaml
 
+# winston üretir — çalışma zamanı çıktısı, formatlanmaz
+apps/api/logs
+
 # drizzle-kit üretir — elle veya formatter ile dokunulmaz
 apps/api/src/core/db/migrations

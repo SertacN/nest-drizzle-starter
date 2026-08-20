@@ -22,10 +22,11 @@
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
+		// Fully strict, strictPropertyInitialization included. Every injection here is a
+		// constructor parameter property, which the compiler already treats as initialised, so
+		// the check costs nothing; DTO fields carry `!` because what guarantees them is
+		// ValidationPipe, not the constructor.
 		"strict": true,
-		// Nest injects via decorator metadata, so a property is assigned after construction —
-		// the compiler cannot see it and would flag every injected field.
-		"strictPropertyInitialization": false,
 		"types": ["node", "multer"]
 	},
 	"include": ["src"],

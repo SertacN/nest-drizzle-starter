@@ -9,7 +9,7 @@
 		"start": "node dist/main",
 		"check": "tsc --noEmit -p tsconfig.json",
 		"lint": "eslint \"{src,scripts}/**/*.ts\" --fix",
-		"format": "prettier --write \"{src,scripts}/**/*.ts\"",
+		"format": "prettier --write \"{src,scripts}/**/*.ts\" drizzle.config.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "tsx src/core/db/migrate.ts",
 		"db:studio": "drizzle-kit studio",
