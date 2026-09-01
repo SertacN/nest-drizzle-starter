@@ -21,7 +21,7 @@ export function createExampleService({ request, envelope }: Requester) {
 		get: (id: string) => request<Example>(`/api/v1/examples/${id}`),
 		create: (input: ExampleCreateInput) => request<Example>('/api/v1/examples', { method: 'POST', body: JSON.stringify(input) }),
 		update: (id: string, input: ExampleUpdateInput) => request<Example>(`/api/v1/examples/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
-		/** Soft delete — the row stays, `is_active` flips to false. */
+		/** Soft delete — the row stays, `is_deleted` flips to true. */
 		remove: (id: string) => request<null>(`/api/v1/examples/${id}`, { method: 'DELETE' }),
 		/** Anonymous surface: published rows only, no session needed. */
 		listPublished: () => request<PublicExample[]>('/api/v1/public/examples'),

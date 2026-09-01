@@ -86,7 +86,9 @@ gider.
   `db:migrate`. Migration'lar sıralıdır, atlanmaz, geri alınmaz; geri dönüş yeni bir
   migration'la olur.
 - Servisler `@Inject(DRIZZLE) private readonly db: Database` ile enjekte eder.
-- Silmek yerine pasifleştir (`is_active`).
+- Satırı silmek yerine yumuşak sil (`is_deleted`). `is_active` BAŞKA bir şeydir — kullanıcıya
+  görünen açık/kapalı anahtarı (kapatılmış hesap, sahibinin duraklattığı bir satır). İkisine
+  birden ihtiyaç duyan tablo iki kolonu da taşır; tek bayrak ikisi birden olamaz.
 
 ## Pazarlığa kapalı olanlar
 

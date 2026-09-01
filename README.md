@@ -130,7 +130,9 @@ rename as "drop + add", and that is data loss.
 
 Services inject the client with `@Inject(DRIZZLE) private readonly db: Database`.
 
-Prefer deactivating (`is_active`) over deleting, so history and the rows referencing it survive.
+Prefer a soft delete (`is_deleted`) over removing a row, so history and the rows referencing it
+survive. Keep it separate from `is_active`, which is a user-facing switch (a disabled account, a
+paused row) — a table that needs both keeps both columns.
 
 ## Auth
 

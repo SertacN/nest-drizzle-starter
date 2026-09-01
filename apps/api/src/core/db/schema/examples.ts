@@ -16,11 +16,13 @@ export const examples = pgTable(
 		body: text('body'),
 		status: exampleStatus('status').notNull().default('draft'),
 		imageUrl: text('image_url'),
-		isActive: boolean('is_active').notNull().default(true),
+		// Soft delete: the row stays so history and anything referencing it survive. This is NOT
+		// a user-facing switch — a table that also needs "paused" carries its own is_active.
+		isDeleted: boolean('is_deleted').notNull().default(false),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 	},
-	// Every list query filters by owner + is_active and sorts by created_at.
+	// Every list query filters by owner + is_deleted and sorts by created_at.
 	(table) => [index('examples_user_id_created_at_idx').on(table.userId, table.createdAt)],
 );
 

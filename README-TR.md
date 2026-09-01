@@ -130,8 +130,9 @@ add" olarak çözer, bu da veri kaybıdır.
 
 Servisler client'ı `@Inject(DRIZZLE) private readonly db: Database` ile enjekte eder.
 
-Silmek yerine pasifleştirmeyi (`is_active`) tercih et; böylece geçmiş ve o satıra referans veren
-kayıtlar hayatta kalır.
+Satırı silmek yerine yumuşak silmeyi (`is_deleted`) tercih et; böylece geçmiş ve o satıra referans
+veren kayıtlar hayatta kalır. Bunu `is_active`'ten ayrı tut: o, kullanıcıya görünen bir anahtardır
+(kapatılmış hesap, duraklatılmış satır) — ikisine birden ihtiyaç duyan tablo iki kolonu da taşır.
 
 ## Auth
 

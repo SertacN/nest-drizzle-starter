@@ -86,7 +86,9 @@ the log only.
   the generated SQL → `db:migrate`. Migrations are sequential, never skipped, never rolled
   back; you go back with a new migration.
 - Services inject `@Inject(DRIZZLE) private readonly db: Database`.
-- Deactivate (`is_active`) instead of deleting.
+- Soft delete (`is_deleted`) instead of removing the row. `is_active` is a DIFFERENT thing —
+  a user-facing on/off switch (a disabled account, a row its owner paused). A table that needs
+  both carries both columns; one flag can never mean both.
 
 ## Non-negotiables
 

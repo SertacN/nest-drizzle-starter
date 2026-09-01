@@ -54,9 +54,9 @@ export class ExampleController {
 
 	@Delete(':id')
 	@HttpCode(HttpStatus.OK)
-	@ApiOperation({ summary: 'Deactivate an example (soft delete)' })
+	@ApiOperation({ summary: 'Delete an example (soft delete)' })
 	async remove(@GetUser('id') userId: string, @Param('id', ParseUuid) id: string): Promise<ServiceResponse<null>> {
-		await this.exampleService.deactivate(userId, id);
+		await this.exampleService.softDelete(userId, id);
 		return { message: 'Example deleted', data: null };
 	}
 }

@@ -19,7 +19,7 @@ export class ExampleService {
 
 	async list(userId: string, query: ListExamplesDto): Promise<{ items: ExampleRow[]; meta: PaginationMeta }> {
 		// Ownership is part of every filter — a row is never reachable by id alone.
-		const where = and(eq(examples.userId, userId), eq(examples.isActive, true), ...(query.status ? [eq(examples.status, query.status)] : []));
+		const where = and(eq(examples.userId, userId), eq(examples.isDeleted, false), ...(query.status ? [eq(examples.status, query.status)] : []));
 
 		const [items, [totals]] = await Promise.all([
 			this.db.select().from(examples).where(where).orderBy(desc(examples.createdAt)).limit(query.perPage).offset(query.offset),
@@ -42,7 +42,7 @@ export class ExampleService {
 		const [row] = await this.db
 			.select()
 			.from(examples)
-			.where(and(eq(examples.id, id), eq(examples.userId, userId), eq(examples.isActive, true)))
+			.where(and(eq(examples.id, id), eq(examples.userId, userId), eq(examples.isDeleted, false)))
 			.limit(1);
 		// 404 rather than 403 for someone else's row: the answer must not reveal that it exists.
 		if (!row) throw new NotFoundException('example_not_found');
@@ -88,12 +88,12 @@ export class ExampleService {
 	}
 
 	/**
-	 * Deactivate instead of delete: history and anything referencing this row survive.
+	 * Soft delete rather than a real one: history and anything referencing this row survive.
 	 * The uploaded image is a real file though, so it does get removed.
 	 */
-	async deactivate(userId: string, id: string): Promise<void> {
+	async softDelete(userId: string, id: string): Promise<void> {
 		const row = await this.get(userId, id);
-		await this.db.update(examples).set({ isActive: false, updatedAt: new Date() }).where(eq(examples.id, id));
+		await this.db.update(examples).set({ isDeleted: true, updatedAt: new Date() }).where(eq(examples.id, id));
 		await this.storage.deleteFile(userId, row.imageUrl);
 	}
 
@@ -108,7 +108,7 @@ export class ExampleService {
 				createdAt: examples.createdAt,
 			})
 			.from(examples)
-			.where(and(eq(examples.status, 'published'), eq(examples.isActive, true)))
+			.where(and(eq(examples.status, 'published'), eq(examples.isDeleted, false)))
 			.orderBy(desc(examples.createdAt))
 			.limit(50);
 	}
