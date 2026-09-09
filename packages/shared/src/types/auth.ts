@@ -39,3 +39,33 @@ export interface ProfileUpdateInput {
 export interface SessionResponse {
 	user: AuthUser;
 }
+
+/**
+ * A mobile app has no cookie jar, so its endpoints hand the pair back in the body and the app
+ * stores it itself (the refresh token in the Keychain / Keystore, not in plain storage).
+ * Everything behind the transport is identical to the web surface — same rows, same rotation,
+ * same reuse detection.
+ */
+export interface MobileTokens {
+	accessToken: string;
+	refreshToken: string;
+}
+
+export interface MobileSessionResponse {
+	user: AuthUser;
+	tokens: MobileTokens;
+}
+
+/**
+ * `tokens` is filled ONLY when the password changed: that revokes every other device and hands
+ * this one a fresh pair, which the app must store in place of the old one. A name-only update
+ * leaves it null and the stored pair stays valid.
+ */
+export interface MobileProfileResponse {
+	user: AuthUser;
+	tokens: MobileTokens | null;
+}
+
+export interface RefreshTokenInput {
+	refreshToken: string;
+}
