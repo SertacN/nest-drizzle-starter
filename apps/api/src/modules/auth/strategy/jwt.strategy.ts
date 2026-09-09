@@ -17,9 +17,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 		@Inject(DRIZZLE) private readonly db: Database,
 	) {
 		super({
-			// Cookie first: that is how the browser sends it. The Bearer fallback exists so
-			// `curl -H 'Authorization: Bearer ...'` and the Swagger "Authorize" button work
-			// against the same endpoints while developing.
+			// Two transports, one strategy. Cookie first: that is how the browser sends it.
+			// The Bearer header is how a mobile app (and `curl`, and the Swagger "Authorize"
+			// button) sends the very same access token — so every guarded endpoint serves
+			// both audiences without knowing which one it is talking to.
 			jwtFromRequest: ExtractJwt.fromExtractors([
 				(req: Request) => (req.cookies?.[ACCESS_TOKEN_COOKIE] as string | undefined) ?? null,
 				ExtractJwt.fromAuthHeaderAsBearerToken(),
