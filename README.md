@@ -5,10 +5,11 @@
 A NestJS + TypeScript + Drizzle (PostgreSQL) API skeleton. A pnpm monorepo: `apps/api` is
 ready to run, `apps/web` is empty — you pick the frontend framework when the project starts.
 
-What comes with it: cookie-based JWT auth (access + refresh, with rotation and reuse
-detection), role guards, Swagger docs, image uploads (re-encoded to WebP by sharp), a
-cookie-authenticated WebSocket gateway, rotating file logs, a Postgres-only compose file for
-development and a Traefik-labelled one for production.
+What comes with it: JWT auth (access + refresh, with rotation and reuse detection) over two
+transports — httpOnly cookies for the browser, Bearer tokens for a mobile app — role guards,
+Swagger docs, image uploads (re-encoded to WebP by sharp), an authenticated WebSocket gateway,
+rotating file logs, a Postgres-only compose file for development and a Traefik-labelled one for
+production.
 
 ## Quick start
 
@@ -35,6 +36,15 @@ curl -c cookies.txt -X POST localhost:3000/api/v1/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"admin@example.com","password":"secret123"}'
 curl -b cookies.txt localhost:3000/api/v1/auth/me
+```
+
+The same thing the way a mobile app does it — tokens in the body, then a Bearer header:
+
+```bash
+curl -X POST localhost:3000/api/v1/auth/mobile/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@example.com","password":"secret123"}'
+curl -H "Authorization: Bearer <accessToken>" localhost:3000/api/v1/auth/me
 ```
 
 Interactive API docs: <http://localhost:3000/api/docs> (development only).
@@ -136,10 +146,10 @@ paused row) — a table that needs both keeps both columns.
 
 ## Auth
 
-A single user universe (the `users` table) with authority split by `role`. **Tokens are never
-in a response body** — they are httpOnly cookies the browser cannot read, so an XSS bug cannot
-walk off with the session. Access tokens last 15 minutes, refresh tokens 30 days and are
-**tracked in the database**:
+A single user universe (the `users` table) with authority split by `role`. On the web surface
+**tokens are never in a response body** — they are httpOnly cookies the browser cannot read, so
+an XSS bug cannot walk off with the session. Access tokens last 15 minutes, refresh tokens 30
+days and are **tracked in the database**:
 
 - Every refresh rotates: the old row is burned with `used_at` and a new row is opened.
 - A token that comes back after it was spent counts as stolen and every token in its
@@ -152,8 +162,21 @@ Do not break this pattern: caching or auto-retrying the refresh endpoint sets of
 detection for the wrong reason.
 
 Endpoints: `POST /api/v1/auth/{register,login,refresh,logout}`, `GET|PATCH /api/v1/auth/me`.
-If you do not want open sign-ups, delete the `register` handler from `auth.controller.ts` and
-add users with `user:create`.
+If you do not want open sign-ups, delete the `register` handler from `auth.controller.ts` (and
+from `mobile-auth.controller.ts`) and add users with `user:create`.
+
+### Mobile
+
+A device has no cookie jar, so `mobile-auth.controller.ts` serves the same session over a
+different transport: `POST /api/v1/auth/mobile/{register,login,refresh,logout}` and
+`PATCH /api/v1/auth/mobile/me` return the pair in the body, and the app stores it — **the
+refresh token belongs in the Keychain / Keystore**, never in plain storage. `refresh` and
+`logout` take `{ "refreshToken": "…" }` as a body instead of reading a cookie.
+
+Behind the transport nothing differs: one `AuthService`, one `refresh_tokens` table, the same
+rotation and reuse detection. Guarded endpoints serve both audiences at once, because
+`JwtStrategy` reads the access token from the cookie first and the `Authorization: Bearer`
+header second — which is why `GET /api/v1/auth/me` has no mobile twin.
 
 Guarding a route:
 
@@ -182,8 +205,10 @@ not in the database dump.**
 ## Realtime
 
 `ws://…/ws` — raw `ws`, no client library needed. The browser sends the auth cookie on the
-handshake by itself, so there is no join message and no token in a query string. An
-unauthenticated socket is closed with code 1008.
+handshake by itself, so there is no join message. A mobile client can send neither a cookie nor
+a header, so it appends the ACCESS token instead: `ws://…/ws?token=<accessToken>` (never the
+refresh token — a URL ends up in proxy logs). An unauthenticated socket is closed with code
+1008.
 
 Push to a user from any service: inject `EventsGateway` and call
 `sendToUser(userId, type, data)`. State is in memory, which assumes ONE API instance — scaling
@@ -234,6 +259,28 @@ const { items, meta } = await api.examples.list({ page: 1 });
 
 The client sends `credentials: "include"` on every call and refreshes once, single-flight, when
 a request comes back 401 — you do not write that logic again.
+
+For a mobile app, `createMobileApiClient` is the same client over Bearer tokens. The only thing
+it needs from you is where to keep the pair:
+
+```ts
+import { createMobileApiClient } from "shared";
+
+const api = createMobileApiClient({
+  baseUrl: "https://api.example.com",
+  tokens: {
+    read: () => readFromSecureStore(),
+    write: (pair) => writeToSecureStore(pair),
+  },
+  onSessionExpired: () => navigation.reset({ routes: [{ name: "SignIn" }] }),
+});
+
+await api.auth.login({ email, password }); // the pair is stored for you
+const { items, meta } = await api.examples.list({ page: 1 });
+```
+
+Every non-auth service is the exact same code in both clients — a resource service never knew
+how the session travelled.
 
 If the frontend runs on a different origin than the API, put that origin in `CORS_ORIGIN`;
 credentialed requests are rejected by browsers against a wildcard, so an empty value means

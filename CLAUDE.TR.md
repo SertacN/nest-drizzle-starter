@@ -14,13 +14,13 @@ ucun paylaştığı sabitleri, tipleri ve API client'ını tutar.
 
 ## Stack
 
-| Katman  | Seçim                                                                                                     |
-| ------- | --------------------------------------------------------------------------------------------------------- |
-| Backend | NestJS 11 + Express 5 + `ws`, `/api/v1/*` altında REST, TypeScript, **CommonJS**                          |
-| DB      | PostgreSQL 16 + Drizzle ORM (hiçbir yerde Prisma yok)                                                     |
-| Auth    | **httpOnly cookie**'de JWT (access 15 dk + refresh 30 gün, DB'de takip edilir), roller: `admin` \| `user` |
-| Doküman | class-validator DTO'larından üretilen Swagger, `/api/docs`, sadece development                            |
-| Deploy  | Docker Compose; Traefik compose dosyasında DEĞİL, VPS'teki ortak instance                                 |
+| Katman  | Seçim                                                                                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend | NestJS 11 + Express 5 + `ws`, `/api/v1/*` altında REST, TypeScript, **CommonJS**                                                                        |
+| DB      | PostgreSQL 16 + Drizzle ORM (hiçbir yerde Prisma yok)                                                                                                   |
+| Auth    | JWT, access 15 dk + refresh 30 gün, DB'de takip edilir. Web: **httpOnly cookie**; mobil: `/auth/mobile/*` altında **Bearer**. Roller: `admin` \| `user` |
+| Doküman | class-validator DTO'larından üretilen Swagger, `/api/docs`, sadece development                                                                          |
+| Deploy  | Docker Compose; Traefik compose dosyasında DEĞİL, VPS'teki ortak instance                                                                               |
 
 ## API nasıl bölünmüş (modül önce)
 
@@ -37,7 +37,9 @@ src/
 
 Bir modülün içi: `<ad>.service.ts` (DB ile konuşan tek katman) + `<ad>.controller.ts` + `dto/` +
 `<ad>.module.ts` + `index.ts`. Bir modül birden fazla kitleye hizmet ediyorsa HTTP yüzeyi
-dosyaya göre ayrılır (`public-<ad>.controller.ts`); servis ve şema tek kopya kalır.
+dosyaya göre ayrılır (`public-<ad>.controller.ts`, `mobile-<ad>.controller.ts`); servis ve şema
+tek kopya kalır — `auth/` tek bir `AuthService` üzerine bir cookie controller'ı ve bir Bearer
+controller'ı koyar.
 
 **İki kural (asla bozma):**
 
@@ -99,7 +101,14 @@ gider.
 - Refresh token deseni bozulmaz: rotation + reuse detection + family revoke. Refresh
   endpoint'inde cache ve otomatik retry yok.
 - Auth cookie'leri `httpOnly` + `sameSite: 'lax'` kalır, production'da `secure` olur ve refresh
-  cookie'si `/api/v1/auth` path'ine kısıtlı kalır. Token'lar response body'sinde asla görünmez.
+  cookie'si `/api/v1/auth` path'ine kısıtlı kalır. Web yüzeyinde token'lar response body'sinde
+  asla görünmez.
+- `/api/v1/auth/mobile/*` bunun TEK istisnasıdır: cihazın cookie jar'ı yoktur, çifti body'de
+  alır ve kendisi saklar. O handler'lar cookie set etmez, arkasındaki hiçbir şey değişmez —
+  aynı servis, aynı rotation, aynı reuse detection. İstisnayı `/auth/*`'a genişletme.
+- WebSocket handshake'i ACCESS token'ını `?token=` olarak kabul eder (cihaz ne cookie ne header
+  set edebiliyor). Refresh token URL'e asla girmez ve upgrade URL'lerini loglayan her şey bu
+  parametreyi maskeler.
 - `ValidationPipe` `whitelist: true` ile çalışır — kapatma; bir client'ın body'ye
   `role: "admin"` sızdırmasını engelleyen şey budur.
 - Para ve diğer kritik aritmetik sadece sunucuda, transaction içinde yapılır; client'ın

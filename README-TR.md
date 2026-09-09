@@ -5,10 +5,11 @@
 NestJS + TypeScript + Drizzle (PostgreSQL) API iskeleti. pnpm monorepo: `apps/api` çalışmaya
 hazır, `apps/web` boş — frontend framework'ünü proje başlarken sen seçiyorsun.
 
-Kutudan çıkanlar: cookie tabanlı JWT auth (access + refresh, rotation ve çalınma tespitiyle),
-rol guard'ları, Swagger dokümantasyonu, görsel yükleme (sharp ile WebP'ye yeniden kodlama),
-cookie ile kimlik doğrulayan WebSocket gateway, günlük döndürülen dosya logları, geliştirme için
-sadece Postgres içeren bir compose dosyası ve production için Traefik etiketli bir tane.
+Kutudan çıkanlar: iki taşıma üzerinden JWT auth (access + refresh, rotation ve çalınma
+tespitiyle) — tarayıcı için httpOnly cookie, mobil uygulama için Bearer token —, rol guard'ları,
+Swagger dokümantasyonu, görsel yükleme (sharp ile WebP'ye yeniden kodlama), kimlik doğrulayan
+WebSocket gateway, günlük döndürülen dosya logları, geliştirme için sadece Postgres içeren bir
+compose dosyası ve production için Traefik etiketli bir tane.
 
 ## Hızlı başlangıç
 
@@ -35,6 +36,15 @@ curl -c cookies.txt -X POST localhost:3000/api/v1/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"admin@example.com","password":"secret123"}'
 curl -b cookies.txt localhost:3000/api/v1/auth/me
+```
+
+Aynı şeyin mobil hâli — token'lar body'de geliyor, sonra Bearer header'ı:
+
+```bash
+curl -X POST localhost:3000/api/v1/auth/mobile/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@example.com","password":"secret123"}'
+curl -H "Authorization: Bearer <accessToken>" localhost:3000/api/v1/auth/me
 ```
 
 Etkileşimli API dokümantasyonu: <http://localhost:3000/api/docs> (sadece development).
@@ -136,9 +146,9 @@ veren kayıtlar hayatta kalır. Bunu `is_active`'ten ayrı tut: o, kullanıcıya
 
 ## Auth
 
-Tek kullanıcı evreni (`users` tablosu), yetki `role` ile ayrılıyor. **Token'lar response
-body'sinde asla yok** — tarayıcının okuyamadığı httpOnly cookie'lerdeler, yani bir XSS açığı
-oturumu alıp götüremez. Access token 15 dakika, refresh token 30 gün yaşar ve **veritabanında
+Tek kullanıcı evreni (`users` tablosu), yetki `role` ile ayrılıyor. Web yüzeyinde **token'lar
+response body'sinde asla yok** — tarayıcının okuyamadığı httpOnly cookie'lerdeler, yani bir XSS
+açığı oturumu alıp götüremez. Access token 15 dakika, refresh token 30 gün yaşar ve **veritabanında
 takip edilir**:
 
 - Her refresh rotate eder: eski satır `used_at` ile yakılır, yeni satır açılır.
@@ -152,8 +162,22 @@ Bu deseni bozma: refresh endpoint'ini cache'lemek ya da otomatik retry'a bağlam
 detection'ı yanlış sebeple tetikler.
 
 Endpoint'ler: `POST /api/v1/auth/{register,login,refresh,logout}`,
-`GET|PATCH /api/v1/auth/me`. Açık kayıt istemiyorsan `auth.controller.ts`'ten `register`
-handler'ını sil ve kullanıcıları `user:create` ile ekle.
+`GET|PATCH /api/v1/auth/me`. Açık kayıt istemiyorsan `auth.controller.ts`'ten (ve
+`mobile-auth.controller.ts`'ten) `register` handler'ını sil ve kullanıcıları `user:create` ile
+ekle.
+
+### Mobil
+
+Cihazın cookie jar'ı yok, o yüzden `mobile-auth.controller.ts` aynı oturumu farklı bir taşımayla
+sunuyor: `POST /api/v1/auth/mobile/{register,login,refresh,logout}` ve
+`PATCH /api/v1/auth/mobile/me` çifti body'de döndürür, uygulama da saklar — **refresh token'ın
+yeri Keychain / Keystore'dur**, düz storage değil. `refresh` ve `logout` cookie okumak yerine
+body'den `{ "refreshToken": "…" }` alır.
+
+Taşımanın arkasında hiçbir şey farklı değil: tek `AuthService`, tek `refresh_tokens` tablosu,
+aynı rotation ve reuse detection. Korumalı endpoint'ler iki kitleye birden hizmet ediyor, çünkü
+`JwtStrategy` access token'ı önce cookie'den, sonra `Authorization: Bearer` header'ından okuyor
+— `GET /api/v1/auth/me`'nin mobil ikizinin olmamasının sebebi bu.
 
 Bir route'u korumak:
 
@@ -181,8 +205,9 @@ dump'ında yok.**
 ## Realtime
 
 `ws://…/ws` — ham `ws`, client kütüphanesi gerekmiyor. Tarayıcı auth cookie'sini handshake'te
-kendisi gönderir, dolayısıyla join mesajı da query string'de token da yok. Kimliksiz socket 1008
-koduyla kapatılır.
+kendisi gönderir, dolayısıyla join mesajı yok. Mobil client ne cookie ne header gönderebiliyor,
+o yüzden ACCESS token'ı ekliyor: `ws://…/ws?token=<accessToken>` (refresh token asla — URL proxy
+loglarına düşer). Kimliksiz socket 1008 koduyla kapatılır.
 
 Herhangi bir servisten kullanıcıya push: `EventsGateway`'i enjekte et ve
 `sendToUser(userId, type, data)` çağır. State bellekte, yani TEK API instance varsayılıyor —
@@ -233,6 +258,28 @@ const { items, meta } = await api.examples.list({ page: 1 });
 
 Client her çağrıda `credentials: "include"` gönderir ve bir istek 401 dönerse tek seferlik
 (single-flight) refresh yapar — bu mantığı bir daha yazmıyorsun.
+
+Mobil uygulama için `createMobileApiClient` aynı client'ın Bearer token'lı hâli. Senden tek
+istediği, çifti nerede saklayacağı:
+
+```ts
+import { createMobileApiClient } from "shared";
+
+const api = createMobileApiClient({
+  baseUrl: "https://api.example.com",
+  tokens: {
+    read: () => readFromSecureStore(),
+    write: (pair) => writeToSecureStore(pair),
+  },
+  onSessionExpired: () => navigation.reset({ routes: [{ name: "SignIn" }] }),
+});
+
+await api.auth.login({ email, password }); // çifti senin yerine saklıyor
+const { items, meta } = await api.examples.list({ page: 1 });
+```
+
+Auth dışındaki her servis iki client'ta da birebir aynı kod — bir kaynak servisi oturumun nasıl
+taşındığını zaten hiç bilmiyordu.
 
 Frontend API'den farklı bir origin'de çalışıyorsa o origin'i `CORS_ORIGIN`'e yaz; tarayıcılar
 credential'lı istekleri wildcard'a karşı reddeder, bu yüzden boş değer "sadece aynı origin"

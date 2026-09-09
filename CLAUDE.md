@@ -14,13 +14,13 @@ ready to run; `apps/web` is empty (the framework is chosen when a project starts
 
 ## Stack
 
-| Layer   | Choice                                                                                                     |
-| ------- | ---------------------------------------------------------------------------------------------------------- |
-| Backend | NestJS 11 + Express 5 + `ws`, REST under `/api/v1/*`, TypeScript, **CommonJS**                             |
-| DB      | PostgreSQL 16 + Drizzle ORM (no Prisma anywhere)                                                           |
-| Auth    | JWT in **httpOnly cookies** (access 15 min + refresh 30 days, tracked in the DB), roles: `admin` \| `user` |
-| Docs    | Swagger from class-validator DTOs, at `/api/docs`, development only                                        |
-| Deploy  | Docker Compose; Traefik is NOT in the compose file, it is the shared VPS instance                          |
+| Layer   | Choice                                                                                                                                                 |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend | NestJS 11 + Express 5 + `ws`, REST under `/api/v1/*`, TypeScript, **CommonJS**                                                                         |
+| DB      | PostgreSQL 16 + Drizzle ORM (no Prisma anywhere)                                                                                                       |
+| Auth    | JWT, access 15 min + refresh 30 days tracked in the DB. Web: **httpOnly cookies**; mobile: **Bearer** under `/auth/mobile/*`. Roles: `admin` \| `user` |
+| Docs    | Swagger from class-validator DTOs, at `/api/docs`, development only                                                                                    |
+| Deploy  | Docker Compose; Traefik is NOT in the compose file, it is the shared VPS instance                                                                      |
 
 ## How the API is organised (module-first)
 
@@ -37,8 +37,9 @@ src/
 
 Inside a module: `<name>.service.ts` (the only layer that talks to the DB) +
 `<name>.controller.ts` + `dto/` + `<name>.module.ts` + `index.ts`. When a module serves more
-than one audience, the HTTP surface is split by file (`public-<name>.controller.ts`) while the
-service and the schema stay single copies.
+than one audience, the HTTP surface is split by file (`public-<name>.controller.ts`,
+`mobile-<name>.controller.ts`) while the service and the schema stay single copies — `auth/`
+ships a cookie controller and a Bearer controller over one `AuthService`.
 
 **Two rules (never break them):**
 
@@ -99,7 +100,14 @@ the log only.
 - The refresh token pattern stays intact: rotation + reuse detection + family revoke. No cache
   and no auto-retry on the refresh endpoint.
 - Auth cookies stay `httpOnly` + `sameSite: 'lax'` + `secure` in production, and the refresh
-  cookie stays scoped to `/api/v1/auth`. Tokens never appear in a response body.
+  cookie stays scoped to `/api/v1/auth`. On the web surface tokens never appear in a response
+  body.
+- `/api/v1/auth/mobile/*` is the ONE exception: a device has no cookie jar, so it gets the pair
+  in the body and stores it itself. Those handlers set no cookie, and nothing else changes —
+  same service, same rotation, same reuse detection. Never widen the exception to `/auth/*`.
+- The WebSocket handshake accepts the ACCESS token as `?token=` (a device can set neither a
+  cookie nor a header). The refresh token never goes in a URL, and anything logging upgrade
+  URLs redacts that parameter.
 - `ValidationPipe` runs with `whitelist: true` — never turn it off; it is what stops a client
   from smuggling `role: "admin"` into a body.
 - Money and other critical arithmetic happens only on the server, inside a transaction; a value
