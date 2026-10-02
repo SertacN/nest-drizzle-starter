@@ -11,20 +11,21 @@ COPY packages/shared packages/shared
 COPY apps/api apps/api
 # shared first: the API compiles against its dist/, not its source.
 RUN pnpm --filter shared build && pnpm --filter api build
-# Drop devDeps — only production dependencies reach the runtime image.
-RUN pnpm install --frozen-lockfile --filter api... --prod
+# A self-contained copy of the api with ONLY its production dependencies. Pruning the
+# workspace in place is not enough: `pnpm install --prod` unlinks devDeps but leaves their
+# files in node_modules/.pnpm, so the compiler and linters would ride along into the image.
+# --legacy: the non-legacy deploy needs injectWorkspacePackages, which would make `shared` a
+# copy instead of a symlink during development as well.
+RUN pnpm --filter api deploy --prod --legacy /prod/api
 
-# pnpm installs dependencies as symlinks (apps/api/node_modules/* -> ../../node_modules/.pnpm/*),
-# so the runtime image keeps the exact same workspace layout or those links break.
+# The same /app/apps/api layout as the repo, so every __dirname-relative path (logs, the
+# migrations folder, the .env lookup) resolves exactly as it does in development.
 FROM node:24-alpine
-WORKDIR /app
-COPY --from=build /repo/node_modules ./node_modules
-COPY --from=build /repo/packages/shared ./packages/shared
-COPY --from=build /repo/apps/api/node_modules ./apps/api/node_modules
-COPY --from=build /repo/apps/api/package.json ./apps/api/package.json
-COPY --from=build /repo/apps/api/dist ./apps/api/dist
-# SQL files are not compiled by tsc, so they are copied next to the built migrator.
-COPY apps/api/src/core/db/migrations ./apps/api/dist/core/db/migrations
 WORKDIR /app/apps/api
+COPY --from=build /prod/api/node_modules ./node_modules
+COPY --from=build /prod/api/package.json ./package.json
+COPY --from=build /repo/apps/api/dist ./dist
+# SQL files are not compiled by tsc, so they are copied next to the built migrator.
+COPY apps/api/src/core/db/migrations ./dist/core/db/migrations
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
