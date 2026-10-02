@@ -29,4 +29,22 @@ export default tseslint.config(
 			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
 		},
 	},
+	{
+		// Modules reach each other only through index.ts: `../auth` is fine, `../auth/auth.service`
+		// is not. core/ is exempt — modules may import any core file directly.
+		files: ['src/modules/**/*.ts'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							regex: '^(\\.\\./)+(?!core/|\\.\\./)[^./][^/]*/.+',
+							message: "Import another module only through its index.ts (e.g. '../auth').",
+						},
+					],
+				},
+			],
+		},
+	},
 );
