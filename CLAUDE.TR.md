@@ -16,7 +16,7 @@ ucun paylaştığı sabitleri, tipleri ve API client'ını tutar.
 
 | Katman  | Seçim                                                                                                                                                   |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend | NestJS 11 + Express 5 + `ws`, `/api/v1/*` altında REST, TypeScript, **CommonJS**                                                                        |
+| Backend | NestJS 12 + Express 5 + `ws`, `/api/v1/*` altında REST, TypeScript, **CommonJS**                                                                        |
 | DB      | PostgreSQL 16 + Drizzle ORM (hiçbir yerde Prisma yok)                                                                                                   |
 | Auth    | JWT, access 15 dk + refresh 30 gün, DB'de takip edilir. Web: **httpOnly cookie**; mobil: `/auth/mobile/*` altında **Bearer**. Roller: `admin` \| `user` |
 | Doküman | class-validator DTO'larından üretilen Swagger, `/api/docs`, sadece development                                                                          |

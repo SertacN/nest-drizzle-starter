@@ -2,8 +2,10 @@
 	"compilerOptions": {
 		// CommonJS, not ESM: `nest build`, the decorator metadata emit and ts-node/tsx all take
 		// the well-trodden path here, and nothing in this stack needs top-level await.
-		"module": "node16",
-		"moduleResolution": "node16",
+		// nodenext (not node16) because Nest 12 ships as ESM: only nodenext lets a CommonJS file
+		// `require` an ESM package, which Node supports natively since 22.12.
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
 		"target": "ES2023",
 		"lib": ["ES2023"],
 		"rootDir": "./src",
