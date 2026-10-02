@@ -5,14 +5,18 @@
  *   pnpm --filter api db:migrate                    # locally, via tsx
  *   docker compose exec api node dist/core/db/migrate.js
  */
-import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Pool } from 'pg';
 
-config({ path: resolve(__dirname, '../../../../../.env'), quiet: true });
+// Node's built-in loader, not dotenv: this file ships in dist/ and dotenv is a devDependency,
+// so the production image does not have it. In a container there is no .env file at all —
+// compose injects the variables — hence the existence check.
 // src/core/db or dist/core/db -> repo root: the same depth either way.
+const envFile = resolve(__dirname, '../../../../../.env');
+if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 async function main() {
 	const connectionString = process.env.DATABASE_URL;
