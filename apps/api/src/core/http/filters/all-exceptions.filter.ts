@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Inject, type LoggerService } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Inject, type LoggerService, NotFoundException } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import type { Request, Response } from 'express';
 import type { ApiErrorBody } from 'shared';
@@ -25,17 +25,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
 		// The query string is dropped on purpose: tokens and reset codes end up there.
 		const meta = { status, method: request.method, path: request.originalUrl.split('?')[0] };
 
+		// The message travels INSIDE the object: nest-winston reads a second argument as the log
+		// context (a string), so passing meta there prints `[object Object]` and files the fields
+		// under `context`.
 		if (status >= 500) {
-			this.logger.error('Unhandled exception', {
-				...meta,
-				message: exception instanceof Error ? exception.message : String(exception),
-				stack: exception instanceof Error ? exception.stack : undefined,
-			});
+			this.logger.error(
+				{ message: 'Unhandled exception', ...meta, reason: exception instanceof Error ? exception.message : String(exception) },
+				exception instanceof Error ? exception.stack : undefined,
+			);
 		} else if (status === 401 || status === 403) {
 			// Auth failures are a brute-force trail — kept separate from ordinary 4xx noise.
-			this.logger.warn?.('Auth failure', { ...meta, error, ip: request.ip });
+			this.logger.warn?.({ message: 'Auth failure', ...meta, error, ip: request.ip });
 		} else if (status >= 400) {
-			this.logger.warn?.(`Client error ${status}`, { ...meta, error });
+			this.logger.warn?.({ message: `Client error ${status}`, ...meta, error });
 		}
 
 		const body: ApiErrorBody = {
@@ -57,6 +59,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
  */
 function describe(exception: unknown, status: number): { error: string; details: string[] } {
 	if (status >= 500) return { error: 'internal_server_error', details: [] };
+
+	// Nest's router answers an unmatched route with prose (`Cannot GET /path?query`), which
+	// would also echo the query string back to the client.
+	if (exception instanceof NotFoundException && /^Cannot [A-Z]+ \//.test(exception.message)) {
+		return { error: 'route_not_found', details: [] };
+	}
 
 	if (exception instanceof HttpException) {
 		const payload = exception.getResponse();
