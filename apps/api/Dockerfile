@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 RUN corepack enable
 ENV CI=true
 WORKDIR /repo
@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile --filter api... --prod
 
 # pnpm installs dependencies as symlinks (apps/api/node_modules/* -> ../../node_modules/.pnpm/*),
 # so the runtime image keeps the exact same workspace layout or those links break.
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/packages/shared ./packages/shared
