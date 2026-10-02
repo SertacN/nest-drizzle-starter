@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
-import { parse as parseCookie } from 'cookie';
+import { parseCookie } from 'cookie';
 import type { IncomingMessage } from 'node:http';
 import { ACCESS_TOKEN_COOKIE } from 'shared';
 import type { WebSocket } from 'ws';
