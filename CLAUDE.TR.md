@@ -118,6 +118,13 @@ gider.
 - Tek API instance varsayılır (WS state bellekte) — yatay ölçekleme önce Redis pub/sub demektir.
 - `NODE_ENV=production` iken Swagger kapalı kalır.
 
+## Web uygulaması: SEO, performans ve erişilebilirlik
+
+`apps/web` kuralları [`.claude/rules/seo.md`](.claude/rules/seo.md) dosyasında ve `apps/web/`
+altında çalışırken otomatik yüklenir. Özetle: Lighthouse'un dört kategorisinde 100 (mobil ve
+masaüstü, her temada), veritabanından üretilen `sitemap.xml`, `robots.txt` ve `llms.txt`,
+ve soft 404 yerine gerçek 404.
+
 ## Commit'ler
 
 Conventional Commits — `<tip>(<kapsam>): <konu>`. Küçük harf, emir kipi, İngilizce, sonda nokta

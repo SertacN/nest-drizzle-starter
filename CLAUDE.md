@@ -118,6 +118,13 @@ the log only.
   first.
 - Swagger stays off when `NODE_ENV=production`.
 
+## Web app: SEO, performance and accessibility
+
+The rules for `apps/web` live in [`.claude/rules/seo.md`](.claude/rules/seo.md) and load
+automatically when working under `apps/web/`. In short: 100 in all four Lighthouse categories
+(mobile and desktop, every theme), a generated `sitemap.xml`, `robots.txt` and `llms.txt`, and
+real 404s instead of soft ones.
+
 ## Commits
 
 Conventional Commits — `<type>(<scope>): <subject>`. Lowercase, imperative, no trailing period,
