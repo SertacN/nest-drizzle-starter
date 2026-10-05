@@ -118,6 +118,11 @@ the log only.
   first.
 - Swagger stays off when `NODE_ENV=production`.
 
+## Local rules
+
+If `.claude/rules/` exists, read the files in it and follow them — they are kept outside the
+repo on purpose and copied in per project. Never commit them.
+
 ## Commits
 
 Conventional Commits — `<type>(<scope>): <subject>`. Lowercase, imperative, no trailing period,
