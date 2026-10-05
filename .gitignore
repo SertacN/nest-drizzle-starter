@@ -16,5 +16,5 @@ logs/
 # leave its source files uncommitted.
 /uploads/
 
-# Local Claude rules, copied in per project
-.claude/rules/
+# Local Claude Code files (rules, settings), never shared through the repo
+.claude/
