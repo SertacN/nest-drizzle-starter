@@ -1,10 +1,13 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { Queue } from 'bullmq';
 import { and, count, desc, eq } from 'drizzle-orm';
 import type { PaginationMeta } from 'shared';
 import { DRIZZLE, type Database } from '../../core/db/drizzle.module';
 import { examples, type ExampleRow } from '../../core/db/schema';
 import { StorageService } from '../../core/storage/storage.service';
 import type { CreateExampleDto, ListExamplesDto, UpdateExampleDto } from './dto';
+import { EXAMPLE_QUEUE, ExampleJob, type ExamplePublishedJobData } from './example.queue';
 
 /**
  * The ONLY layer that talks to the database for this module. Controllers never build queries
@@ -15,6 +18,7 @@ export class ExampleService {
 	constructor(
 		@Inject(DRIZZLE) private readonly db: Database,
 		private readonly storage: StorageService,
+		@InjectQueue(EXAMPLE_QUEUE) private readonly queue: Queue<ExamplePublishedJobData>,
 	) {}
 
 	async list(userId: string, query: ListExamplesDto): Promise<{ items: ExampleRow[]; meta: PaginationMeta }> {
@@ -60,6 +64,7 @@ export class ExampleService {
 				imageUrl: dto.imageUrl ?? null,
 			})
 			.returning();
+		if (row.status === 'published') await this.enqueuePublished(userId, row.id);
 		return row;
 	}
 
@@ -84,6 +89,8 @@ export class ExampleService {
 		if (dto.imageUrl !== undefined && current.imageUrl && current.imageUrl !== dto.imageUrl) {
 			await this.storage.deleteFile(userId, current.imageUrl);
 		}
+		// Only the transition into `published` triggers the job, not every save of a published row.
+		if (row.status === 'published' && current.status !== 'published') await this.enqueuePublished(userId, row.id);
 		return row;
 	}
 
@@ -95,6 +102,16 @@ export class ExampleService {
 		const row = await this.get(userId, id);
 		await this.db.update(examples).set({ isDeleted: true, updatedAt: new Date() }).where(eq(examples.id, id));
 		await this.storage.deleteFile(userId, row.imageUrl);
+	}
+
+	/**
+	 * Enqueued AFTER the row is committed, so the worker can never pick up an id that does not
+	 * exist yet. The flip side: if Redis is down the request fails although the row is saved.
+	 * When losing a job is not acceptable, write it to an outbox table in the same transaction
+	 * and enqueue from there instead.
+	 */
+	private async enqueuePublished(userId: string, exampleId: string): Promise<void> {
+		await this.queue.add(ExampleJob.Published, { userId, exampleId });
 	}
 
 	/** Anonymous surface: published rows only, no owner filter, deliberately few columns. */

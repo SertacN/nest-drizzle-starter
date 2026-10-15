@@ -8,15 +8,16 @@ hazır, `apps/web` boş — frontend framework'ünü proje başlarken sen seçiy
 Kutudan çıkanlar: iki taşıma üzerinden JWT auth (access + refresh, rotation ve çalınma
 tespitiyle) — tarayıcı için httpOnly cookie, mobil uygulama için Bearer token —, rol guard'ları,
 Swagger dokümantasyonu, görsel yükleme (sharp ile WebP'ye yeniden kodlama), kimlik doğrulayan
-WebSocket gateway, günlük döndürülen dosya logları, geliştirme için sadece Postgres içeren bir
-compose dosyası ve production için Traefik etiketli bir tane.
+WebSocket gateway, Redis + BullMQ ile arka plan işleri, günlük döndürülen dosya logları,
+geliştirme için Postgres + Redis içeren bir compose dosyası ve production için Traefik etiketli
+bir tane.
 
 ## Hızlı başlangıç
 
 ```bash
 cp .env.example .env                              # JWT secret'larını değiştir
 pnpm install
-docker compose -f docker-compose.dev.yml up -d    # sadece postgres
+docker compose -f docker-compose.dev.yml up -d    # postgres + redis
 pnpm --filter shared build                        # api, shared'ın dist'ine karşı derleniyor
 pnpm --filter api db:migrate
 pnpm dev                                          # api :3000'de
@@ -69,9 +70,11 @@ apps/api/src/
 ├─ core/             MODÜLE ÖZGÜ HİÇBİR ŞEY BURADA DURMAZ
 │  ├─ config/        env.validation.ts (Joi — hatalı deploy açılışta patlar), winston.config.ts
 │  ├─ db/            drizzle.module.ts (DRIZZLE token'ı), schema/, migrations/, migrate.ts
-│  ├─ health/        gerçekten veritabanına giden sağlık kontrolü
+│  ├─ health/        gerçekten veritabanına ve Redis'e giden sağlık kontrolü
 │  ├─ http/          decorator, dto, filter, guard, interceptor, middleware, pipe, type
+│  ├─ queue/         BullMQ bağlantısı + varsayılan job ayarları (hiçbir kuyruğun sahibi değil)
 │  ├─ realtime/      WebSocket gateway
+│  ├─ redis/         redis.module.ts (REDIS token'ı) — cache/lock için ortak client
 │  ├─ security/      token.service.ts — JWT imzalama/doğrulama
 │  ├─ storage/       diske dokunan TEK sınıf
 │  └─ utils/         password, duration
@@ -91,6 +94,8 @@ packages/shared/src/ sabitler + tipler + api-client — frontend ile paylaşıla
 ```
 modules/<ad>/
 ├─ <ad>.service.ts             DB ile konuşan TEK katman
+├─ <ad>.queue.ts               (opsiyonel) kuyruk adı + tipli job adları ve payload'ları
+├─ <ad>.processor.ts           (opsiyonel) o kuyruğun worker'ı
 ├─ <ad>.controller.ts          HTTP yüzeyi: içeri DTO, dışarı ServiceResponse
 ├─ public-<ad>.controller.ts   (opsiyonel) aynı modülün kimliksiz yüzeyi
 ├─ dto/                        class-validator + @ApiProperty — Swagger bunlardan üretiliyor
@@ -213,6 +218,48 @@ Herhangi bir servisten kullanıcıya push: `EventsGateway`'i enjekte et ve
 `sendToUser(userId, type, data)` çağır. State bellekte, yani TEK API instance varsayılıyor —
 ölçeklemek önce o metodun arkasına Redis pub/sub koymak demek.
 
+## Kuyruklar
+
+`@nestjs/bullmq` üzerinden Redis + BullMQ, Nest dokümanındaki şekilde bağlı. `core/queue/`
+bağlantıyı (`REDIS_URL`) ve varsayılan job ayarlarını bir kez kurar — üstel backoff ile 3 deneme,
+biten işlerde üst sınır — ve hiçbir kuyruğun sahibi değildir. Kuyruk, tıpkı bir tablo gibi, işini
+taşıdığı modüle aittir:
+
+```ts
+// <ad>.queue.ts — iki ucun da import ettiği sözleşme
+export const NOTES_QUEUE = 'notes';
+export const NotesJob = { Index: 'index' } as const;
+export interface NotesIndexJobData { userId: string; noteId: string }
+
+// <ad>.module.ts
+imports: [BullModule.registerQueue({ name: NOTES_QUEUE })],
+providers: [NotesService, NotesProcessor],
+
+// <ad>.service.ts — üretici, satır yazıldıktan sonra
+constructor(@InjectQueue(NOTES_QUEUE) private readonly queue: Queue<NotesIndexJobData>) {}
+await this.queue.add(NotesJob.Index, { userId, noteId });
+
+// <ad>.processor.ts — tüketici
+@Processor(NOTES_QUEUE)
+export class NotesProcessor extends WorkerHost {
+	async process(job: Job) { /* job.name'e göre switch */ }
+}
+```
+
+`modules/example/` içinde çalışan bir örnek var: bir example yayınlanınca job kuyruğa girer,
+processor satırı yeniden okur ve WebSocket'ten `example.published` gönderir.
+
+- Job **satırı değil id'leri** taşır — artı `userId`, çünkü sahiplik worker'da da her sorgunun
+  parçası. Processor servis üzerinden yeniden okur.
+- **Processor'lar idempotent'tir**: başarısız ya da yarıda kalan job tekrar çalışır.
+- Worker'lar **API process'inin içinde** çalışır. Sonradan ayırmak, aynı modülleri HTTP
+  dinleyicisi olmadan açan ikinci bir entrypoint demek.
+- Kuyruğa ekleme yazmadan sonra, transaction dışında olur: Redis çökmüşse satır kaydedilmiş
+  hâlde istek hata döner. Kaybolan job kabul edilemiyorsa outbox tablosu kullan.
+- Redis `noeviction` ve AOF açık çalışır — job'ları tuttuğu için cache değil veritabanı gibi
+  ele alınır. Başka her şey için (cache, lock) ortak client'ı enjekte et:
+  `@Inject(REDIS) private readonly redis: Redis`.
+
 ## Loglar
 
 Winston, `apps/api/logs/` altına günlük döndürerek yazar: `app-%DATE%.log` (info ve üstü) ve
@@ -295,12 +342,13 @@ Traefik instance'ı varsayar — Traefik'i kendisi başlatmaz. Entrypoint `https
 `letsencrypt`; seninkiler farklı adlandırılmışsa etiketleri değiştir.
 
 ```bash
-cp .env.example .env      # DOMAIN, DB_*, JWT_* → gerçek değerler
+cp .env.example .env      # DOMAIN, DB_*, JWT_*, REDIS_PASSWORD → gerçek değerler
 docker compose up -d --build
 docker compose exec api node dist/core/db/migrate.js
 ```
 
-Postgres yalnızca `internal` ağında; ne dış dünya ne de Traefik ona ulaşabilir. Yüklenen
+Postgres ve Redis yalnızca `internal` ağında; ne dış dünya ne de Traefik onlara ulaşabilir.
+Redis ayrıca `REDIS_PASSWORD` ister; API'nin `REDIS_URL`'ini compose ondan kurar. Yüklenen
 dosyalar `uploads` volume'ünde kalıcıdır. `NODE_ENV=production` iken Swagger kapalıdır — şema
 her endpoint'in ve her alan adının haritasıdır.
 
@@ -383,7 +431,8 @@ yüzden kurallar değişince ikisini birden güncelle.
 - [ ] `modules/example/`, `schema/examples.ts`, `constants/example.ts`, `types/example.ts`,
       `api-client/example.service.ts` → sil ya da ilk gerçek modülüne dönüştür
 - [ ] İhtiyacın yoksa `core/realtime/` (WebSocket) ya da `core/storage/` + `modules/uploads/`
-      klasörlerini sil
+      klasörlerini sil; arka plan işi yoksa `core/queue/`, `core/redis/` ve `redis` servislerini
+      de kaldır
 - [ ] `apps/web`'e bir framework kur, compose dosyasındaki `web` servisini yorumdan çıkar
 - [ ] `main.ts`'teki Swagger başlığını ve açıklamasını ayarla
 - [ ] Claude Code dışında bir AI aracı kullanıyorsan `CLAUDE.md`'yi onun kural dosyasına kopyala

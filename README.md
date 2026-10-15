@@ -8,15 +8,15 @@ ready to run, `apps/web` is empty — you pick the frontend framework when the p
 What comes with it: JWT auth (access + refresh, with rotation and reuse detection) over two
 transports — httpOnly cookies for the browser, Bearer tokens for a mobile app — role guards,
 Swagger docs, image uploads (re-encoded to WebP by sharp), an authenticated WebSocket gateway,
-rotating file logs, a Postgres-only compose file for development and a Traefik-labelled one for
-production.
+background jobs on Redis + BullMQ, rotating file logs, a Postgres + Redis compose file for
+development and a Traefik-labelled one for production.
 
 ## Quick start
 
 ```bash
 cp .env.example .env                              # change the JWT secrets
 pnpm install
-docker compose -f docker-compose.dev.yml up -d    # postgres only
+docker compose -f docker-compose.dev.yml up -d    # postgres + redis
 pnpm --filter shared build                        # api compiles against shared's dist
 pnpm --filter api db:migrate
 pnpm dev                                          # api on :3000
@@ -69,9 +69,11 @@ apps/api/src/
 ├─ core/             NOTHING module-specific lives here
 │  ├─ config/        env.validation.ts (Joi — a bad deploy fails at boot), winston.config.ts
 │  ├─ db/            drizzle.module.ts (the DRIZZLE token), schema/ (tables), migrations/, migrate.ts
-│  ├─ health/        health check that actually hits the database
+│  ├─ health/        health check that actually hits the database and Redis
 │  ├─ http/          decorators, dto, filters, guards, interceptors, middleware, pipes, types
+│  ├─ queue/         BullMQ connection + default job options (owns no queue)
 │  ├─ realtime/      WebSocket gateway
+│  ├─ redis/         redis.module.ts (the REDIS token) — a shared client for cache/locks
 │  ├─ security/      token.service.ts — signing/verifying JWTs
 │  ├─ storage/       the ONLY class that touches the disk
 │  └─ utils/         password, duration
@@ -91,6 +93,8 @@ packages/shared/src/ constants + types + api-client — the contract shared with
 ```
 modules/<name>/
 ├─ <name>.service.ts             the ONLY layer that talks to the DB
+├─ <name>.queue.ts               (optional) queue name + typed job names and payloads
+├─ <name>.processor.ts           (optional) the worker for that queue
 ├─ <name>.controller.ts          HTTP surface: DTO in, ServiceResponse out
 ├─ public-<name>.controller.ts   (optional) the same module's anonymous surface
 ├─ dto/                          class-validator + @ApiProperty — Swagger is generated from these
@@ -214,6 +218,48 @@ Push to a user from any service: inject `EventsGateway` and call
 `sendToUser(userId, type, data)`. State is in memory, which assumes ONE API instance — scaling
 out means Redis pub/sub behind that method first.
 
+## Queues
+
+Redis + BullMQ through `@nestjs/bullmq`, wired the way the Nest docs do it. `core/queue/` sets
+the connection (`REDIS_URL`) and the default job options once — 3 attempts with exponential
+backoff, finished jobs capped — and owns no queue. A queue belongs to the module whose work it
+carries, the same way a table does:
+
+```ts
+// <name>.queue.ts — the contract both ends import
+export const NOTES_QUEUE = 'notes';
+export const NotesJob = { Index: 'index' } as const;
+export interface NotesIndexJobData { userId: string; noteId: string }
+
+// <name>.module.ts
+imports: [BullModule.registerQueue({ name: NOTES_QUEUE })],
+providers: [NotesService, NotesProcessor],
+
+// <name>.service.ts — producer, after the row is written
+constructor(@InjectQueue(NOTES_QUEUE) private readonly queue: Queue<NotesIndexJobData>) {}
+await this.queue.add(NotesJob.Index, { userId, noteId });
+
+// <name>.processor.ts — consumer
+@Processor(NOTES_QUEUE)
+export class NotesProcessor extends WorkerHost {
+	async process(job: Job) { /* switch on job.name */ }
+}
+```
+
+`modules/example/` has a working one: publishing an example enqueues a job, the processor
+re-reads the row and pushes `example.published` over the WebSocket.
+
+- A job carries **ids, not rows** — plus the `userId`, because ownership is part of every query
+  in a worker too. The processor re-reads through the service.
+- **Processors are idempotent**: a failed or interrupted job runs again.
+- Workers run **inside the API process**. Splitting them out later means a second entrypoint
+  that boots the same modules without the HTTP listener.
+- Enqueueing happens after the write, outside the transaction: if Redis is down the request
+  fails with the row already saved. When a lost job is unacceptable, use an outbox table.
+- Redis runs with `noeviction` and AOF on — it holds jobs, so it is treated like a database,
+  not a cache. For anything else (a cache entry, a lock) inject the shared client:
+  `@Inject(REDIS) private readonly redis: Redis`.
+
 ## Logs
 
 Winston with daily rotation into `apps/api/logs/`: `app-%DATE%.log` (info and up) and
@@ -296,12 +342,13 @@ external `traefik-net` network — it does not start Traefik itself. Entrypoint 
 resolver `letsencrypt`; change the labels if yours are named differently.
 
 ```bash
-cp .env.example .env      # DOMAIN, DB_*, JWT_* → real values
+cp .env.example .env      # DOMAIN, DB_*, JWT_*, REDIS_PASSWORD → real values
 docker compose up -d --build
 docker compose exec api node dist/core/db/migrate.js
 ```
 
-Postgres sits on the `internal` network only; neither the outside world nor Traefik can reach
+Postgres and Redis sit on the `internal` network only; neither the outside world nor Traefik
+can reach them. Redis also requires `REDIS_PASSWORD`; compose builds the API's `REDIS_URL` from
 it. Uploaded files persist in the `uploads` volume. Swagger is disabled when
 `NODE_ENV=production` — the schema is a map of every endpoint and every field name.
 
@@ -385,7 +432,8 @@ read `CLAUDE.md`, so keep both in sync when the rules change.
 - [ ] `modules/example/`, `schema/examples.ts`, `constants/example.ts`, `types/example.ts`,
       `api-client/example.service.ts` → delete them or grow them into your first real module
 - [ ] Delete `core/realtime/` (WebSocket) or `core/storage/` + `modules/uploads/` if you do not
-      need them
+      need them; without background jobs, drop `core/queue/`, `core/redis/` and the `redis`
+      services too
 - [ ] Install a framework in `apps/web`, uncomment the `web` service in the compose file
 - [ ] Set the Swagger title and description in `main.ts`
 - [ ] If you use an AI tool other than Claude Code, copy `CLAUDE.md` into its rules file

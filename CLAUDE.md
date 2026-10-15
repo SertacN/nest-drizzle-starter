@@ -19,6 +19,7 @@ ready to run; `apps/web` is empty (the framework is chosen when a project starts
 | Backend | NestJS 12 + Express 5 + `ws`, REST under `/api/v1/*`, TypeScript, **CommonJS**                                                                         |
 | DB      | PostgreSQL 16 + Drizzle ORM (no Prisma anywhere)                                                                                                       |
 | Auth    | JWT, access 15 min + refresh 30 days tracked in the DB. Web: **httpOnly cookies**; mobile: **Bearer** under `/auth/mobile/*`. Roles: `admin` \| `user` |
+| Queue   | Redis + BullMQ via `@nestjs/bullmq`; workers run in the API process                                                                                    |
 | Docs    | Swagger from class-validator DTOs, at `/api/docs`, development only                                                                                    |
 | Deploy  | Docker Compose; Traefik is NOT in the compose file, it is the shared VPS instance                                                                      |
 
@@ -30,8 +31,8 @@ ready to run; `apps/web` is empty (the framework is chosen when a project starts
 src/
 ├─ main.ts        bootstrap
 ├─ app.module.ts  EVERY module, grouped: infrastructure (core) then features (modules)
-├─ core/          NOTHING module-specific: config, db, health, http, realtime, security,
-│                 storage, utils
+├─ core/          NOTHING module-specific: config, db, health, http, queue, realtime, redis,
+│                 security, storage, utils
 └─ modules/       auth/ example/ uploads/
 ```
 
@@ -91,6 +92,20 @@ the log only.
   a user-facing on/off switch (a disabled account, a row its owner paused). A table that needs
   both carries both columns; one flag can never mean both.
 
+## Queues
+
+- `core/queue/` holds the BullMQ connection and default job options ONLY. A queue belongs to
+  the module whose work it carries: `<name>.queue.ts` (queue name, job names, typed payloads),
+  `BullModule.registerQueue` in `<name>.module.ts`, `@InjectQueue` in the service,
+  `@Processor` + `WorkerHost` in `<name>.processor.ts`. No queue is declared in core.
+- A job payload carries ids (and the owning `userId`), never a row; the processor re-reads
+  through the service, with ownership in the query like everywhere else.
+- Processors are idempotent (jobs retry) and do not query the DB themselves — the service is
+  still the only layer that does. Unknown job names throw, they are never silently completed.
+- Enqueue after the write is committed, never before it.
+- Redis holds jobs, so it runs with `noeviction` + AOF. Other Redis use goes through the
+  shared `REDIS` client from `core/redis/`, not a new connection.
+
 ## Non-negotiables
 
 - Every public (unauthenticated) endpoint must carry its own `@Throttle`, be strictly
@@ -115,7 +130,7 @@ the log only.
 - `core/storage/storage.service.ts` is the only class that touches the disk. The
   `/api/uploads/*` path stays outside the `/api/v1` prefix — those URLs are in the database.
 - A single API instance is assumed (WS state is in memory) — scaling out means Redis pub/sub
-  first.
+  behind `EventsGateway.sendToUser()` first. Redis is already there; the pub/sub is not.
 - Swagger stays off when `NODE_ENV=production`.
 
 ## Local rules
@@ -146,5 +161,5 @@ Claude Code does not start dev servers on its own — the user runs `pnpm dev` i
 terminal. If verifying something genuinely needs a running server, check the port first
 (`lsof -nP -iTCP:3000 -sTCP:LISTEN`) and ask the user if nothing is listening.
 
-Postgres for development comes from `docker compose -f docker-compose.dev.yml up -d`; nothing
-else runs in Docker locally.
+Postgres and Redis for development come from `docker compose -f docker-compose.dev.yml up -d`;
+nothing else runs in Docker locally.

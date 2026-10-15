@@ -19,6 +19,7 @@ ucun paylaştığı sabitleri, tipleri ve API client'ını tutar.
 | Backend | NestJS 12 + Express 5 + `ws`, `/api/v1/*` altında REST, TypeScript, **CommonJS**                                                                        |
 | DB      | PostgreSQL 16 + Drizzle ORM (hiçbir yerde Prisma yok)                                                                                                   |
 | Auth    | JWT, access 15 dk + refresh 30 gün, DB'de takip edilir. Web: **httpOnly cookie**; mobil: `/auth/mobile/*` altında **Bearer**. Roller: `admin` \| `user` |
+| Kuyruk  | `@nestjs/bullmq` üzerinden Redis + BullMQ; worker'lar API process'inde çalışır                                                                          |
 | Doküman | class-validator DTO'larından üretilen Swagger, `/api/docs`, sadece development                                                                          |
 | Deploy  | Docker Compose; Traefik compose dosyasında DEĞİL, VPS'teki ortak instance                                                                               |
 
@@ -30,8 +31,8 @@ ucun paylaştığı sabitleri, tipleri ve API client'ını tutar.
 src/
 ├─ main.ts        bootstrap
 ├─ app.module.ts  HER modül; önce altyapı (core), sonra özellikler (modules)
-├─ core/          MODÜLE ÖZGÜ HİÇBİR ŞEY YOK: config, db, health, http, realtime, security,
-│                 storage, utils
+├─ core/          MODÜLE ÖZGÜ HİÇBİR ŞEY YOK: config, db, health, http, queue, realtime, redis,
+│                 security, storage, utils
 └─ modules/       auth/ example/ uploads/
 ```
 
@@ -92,6 +93,20 @@ gider.
   görünen açık/kapalı anahtarı (kapatılmış hesap, sahibinin duraklattığı bir satır). İkisine
   birden ihtiyaç duyan tablo iki kolonu da taşır; tek bayrak ikisi birden olamaz.
 
+## Kuyruklar
+
+- `core/queue/` SADECE BullMQ bağlantısını ve varsayılan job ayarlarını tutar. Kuyruk, işini
+  taşıdığı modüle aittir: `<ad>.queue.ts` (kuyruk adı, job adları, tipli payload'lar),
+  `<ad>.module.ts` içinde `BullModule.registerQueue`, serviste `@InjectQueue`,
+  `<ad>.processor.ts` içinde `@Processor` + `WorkerHost`. Core'da kuyruk tanımlanmaz.
+- Job payload'ı satırı değil id'leri (ve sahibi olan `userId`'yi) taşır; processor servis
+  üzerinden yeniden okur, sahiplik her yerde olduğu gibi sorgunun parçasıdır.
+- Processor'lar idempotent'tir (job'lar tekrar dener) ve DB'yi kendileri sorgulamaz — bunu yapan
+  tek katman yine servistir. Bilinmeyen job adı hata fırlatır, sessizce tamamlanmış sayılmaz.
+- Kuyruğa ekleme, yazma commit edildikten sonra yapılır, asla önce değil.
+- Redis job'ları tuttuğu için `noeviction` + AOF ile çalışır. Redis'in başka kullanımları yeni
+  bağlantı açmaz, `core/redis/`'teki ortak `REDIS` client'ından geçer.
+
 ## Pazarlığa kapalı olanlar
 
 - Her public (kimliksiz) endpoint kendi `@Throttle`'ını taşımak, katı valide edilmek ve
@@ -115,7 +130,8 @@ gider.
   hesapladığı değere asla güvenilmez.
 - Diske dokunan tek sınıf `core/storage/storage.service.ts`'tir. `/api/uploads/*` yolu `/api/v1`
   prefix'inin dışında kalır — o URL'ler veritabanında duruyor.
-- Tek API instance varsayılır (WS state bellekte) — yatay ölçekleme önce Redis pub/sub demektir.
+- Tek API instance varsayılır (WS state bellekte) — yatay ölçekleme önce
+  `EventsGateway.sendToUser()` arkasına Redis pub/sub demektir. Redis zaten var; pub/sub yok.
 - `NODE_ENV=production` iken Swagger kapalı kalır.
 
 ## Yerel kurallar
@@ -146,5 +162,5 @@ Claude Code kendi başına dev sunucusu başlatmaz — `pnpm dev`'i kullanıcı 
 çalıştırır. Bir şeyi doğrulamak gerçekten çalışan bir sunucu gerektiriyorsa önce portu kontrol
 et (`lsof -nP -iTCP:3000 -sTCP:LISTEN`), dinleyen bir şey yoksa kullanıcıya sor.
 
-Geliştirme için Postgres `docker compose -f docker-compose.dev.yml up -d` ile gelir; lokalde
-Docker'da başka hiçbir şey çalışmaz.
+Geliştirme için Postgres ve Redis `docker compose -f docker-compose.dev.yml up -d` ile gelir;
+lokalde Docker'da başka hiçbir şey çalışmaz.
