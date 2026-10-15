@@ -12,6 +12,11 @@ export const envValidationSchema = Joi.object({
 
 	DATABASE_URL: Joi.string().required(),
 
+	// Queues (BullMQ) and the shared client both connect here. `rediss://` for TLS.
+	REDIS_URL: Joi.string()
+		.uri({ scheme: ['redis', 'rediss'] })
+		.required(),
+
 	// The two secrets must differ: a refresh token must not be accepted where an access token
 	// is expected, and separate secrets make that structurally impossible.
 	JWT_ACCESS_SECRET: Joi.string().min(16).required().disallow(Joi.ref('JWT_REFRESH_SECRET')).messages({
@@ -33,6 +38,7 @@ export const envValidationSchema = Joi.object({
 	DB_NAME: Joi.string().optional(),
 	DB_USER: Joi.string().optional(),
 	DB_PASSWORD: Joi.string().optional(),
+	REDIS_PASSWORD: Joi.string().optional(),
 });
 
 /** Parsed once here so callers never re-split the string on every request. */

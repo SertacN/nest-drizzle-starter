@@ -11,7 +11,9 @@ import { createWinstonConfig } from './core/config/winston.config';
 import { DrizzleModule } from './core/db/drizzle.module';
 import { HealthModule } from './core/health/health.module';
 import { HttpLoggerMiddleware } from './core/http/middleware/http-logger.middleware';
+import { QueueModule } from './core/queue/queue.module';
 import { RealtimeModule } from './core/realtime/realtime.module';
+import { RedisModule } from './core/redis/redis.module';
 import { SecurityModule } from './core/security/security.module';
 import { StorageModule } from './core/storage/storage.module';
 import { UPLOADS_URL_PREFIX } from './core/storage/storage.service';
@@ -38,6 +40,8 @@ import { UploadModule } from './modules/uploads';
 		// ---- infrastructure (core) ---------------------------------------------------------
 		// All @Global(): every feature needs them and re-importing them everywhere is noise.
 		DrizzleModule,
+		RedisModule,
+		QueueModule,
 		SecurityModule,
 		StorageModule,
 		RealtimeModule,

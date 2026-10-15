@@ -8,5 +8,6 @@ allowBuilds:
   "@scarf/scarf": true
   bcrypt: true
   esbuild: true
+  msgpackr-extract: true
   sharp: true
   unrs-resolver: true
